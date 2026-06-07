@@ -4,6 +4,7 @@ import { AppLayout } from '../components/layout/AppLayout'
 import { ProtectedRoute } from './ProtectedRoute'
 import { RoleRoute } from './RoleRoute'
 
+import { LandingPage } from '../pages/landing/LandingPage'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { RegisterPage } from '../pages/auth/RegisterPage'
 import { OnboardingPage } from '../pages/auth/OnboardingPage'
@@ -12,12 +13,19 @@ import { DashboardPage } from '../pages/dashboard/DashboardPage'
 import { TournamentsListPage } from '../pages/tournaments/TournamentsListPage'
 import { TournamentDetailPage } from '../pages/tournaments/TournamentDetailPage'
 import { TournamentCreatePage } from '../pages/tournaments/TournamentCreatePage'
+import { BracketPage } from '../pages/tournaments/BracketPage'
+import { StandingsPage } from '../pages/tournaments/StandingsPage'
+import { MatchDetailPage } from '../pages/matches/MatchDetailPage'
 import { ClubPage } from '../pages/club/ClubPage'
 import { ScoresPage } from '../pages/scores/ScoresPage'
 import { MatchmakingPage } from '../pages/matchmaking/MatchmakingPage'
+import { ProfilePage } from '../pages/profile/ProfilePage'
 
 export const router = createBrowserRouter([
-  // Public auth routes
+  // Public landing
+  { path: '/', element: <LandingPage /> },
+
+  // Auth routes
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/onboarding', element: <OnboardingPage /> },
@@ -25,19 +33,19 @@ export const router = createBrowserRouter([
 
   // Protected app routes
   {
-    path: '/',
+    path: '/app',
     element: (
       <ProtectedRoute>
         <AppLayout />
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { index: true, element: <Navigate to="/app/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'profile', element: <ProfilePage /> },
 
-      // Tournaments
+      // Tournaments — static routes BEFORE dynamic :id
       { path: 'tournaments', element: <TournamentsListPage /> },
-      { path: 'tournaments/:id', element: <TournamentDetailPage /> },
       {
         path: 'tournaments/create',
         element: (
@@ -46,6 +54,12 @@ export const router = createBrowserRouter([
           </RoleRoute>
         ),
       },
+      { path: 'tournaments/:id', element: <TournamentDetailPage /> },
+      { path: 'tournaments/:id/bracket', element: <BracketPage /> },
+      { path: 'tournaments/:id/standings', element: <StandingsPage /> },
+
+      // Matches
+      { path: 'matches/:id', element: <MatchDetailPage /> },
 
       // Club (captain + organizer)
       {
@@ -57,18 +71,26 @@ export const router = createBrowserRouter([
         ),
       },
 
-      // Scores & Matchmaking (all authenticated)
+      // Scores & Matchmaking
       { path: 'scores', element: <ScoresPage /> },
       { path: 'matchmaking', element: <MatchmakingPage /> },
 
-      // Placeholder pages (Phase 2+)
+      // Phase 2+ placeholders
       { path: 'broadcast', element: <PlaceholderPage title="Broadcast Studio" icon="📡" phase={2} /> },
       { path: 'integrations', element: <PlaceholderPage title="Intégrations" icon="🔗" phase={3} /> },
     ],
   },
 
+  // Legacy redirect: /dashboard → /app/dashboard
+  { path: '/dashboard', element: <Navigate to="/app/dashboard" replace /> },
+  { path: '/tournaments', element: <Navigate to="/app/tournaments" replace /> },
+  { path: '/club', element: <Navigate to="/app/club" replace /> },
+  { path: '/scores', element: <Navigate to="/app/scores" replace /> },
+  { path: '/matchmaking', element: <Navigate to="/app/matchmaking" replace /> },
+  { path: '/profile', element: <Navigate to="/app/profile" replace /> },
+
   // Catch-all
-  { path: '*', element: <Navigate to="/dashboard" replace /> },
+  { path: '*', element: <Navigate to="/" replace /> },
 ])
 
 function PlaceholderPage({ title, icon, phase }: { title: string; icon: string; phase: number }) {

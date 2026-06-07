@@ -24,7 +24,7 @@ export function LoginPage() {
     setError(null)
     const { error: err } = await signInWithEmail(data.email, data.password)
     if (err) { setError(err.message); return }
-    navigate('/dashboard')
+    navigate('/app/dashboard')
   }
 
   return (

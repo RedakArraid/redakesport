@@ -61,7 +61,7 @@ export function TournamentCreatePage() {
 
     if (error) { addToast('error', error.message); return }
     addToast('success', 'Tournoi créé avec succès !')
-    navigate(`/tournaments/${t.id}`)
+    navigate(`/app/tournaments/${t.id}`)
   }
 
   return (

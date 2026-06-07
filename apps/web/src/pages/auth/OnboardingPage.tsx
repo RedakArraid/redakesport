@@ -33,7 +33,7 @@ export function OnboardingPage() {
 
     if (err) { setError(err.message); setLoading(false); return }
     setProfile(data)
-    navigate('/dashboard')
+    navigate('/app/dashboard')
   }
 
   return (

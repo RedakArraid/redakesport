@@ -64,9 +64,9 @@ export function DashboardPage() {
           <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucun tournoi en cours</div>
           {profile?.role === 'organizer' ? (
-            <Link to="/tournaments/create" style={{ color: 'var(--accent)', fontWeight: 700 }}>Créer un tournoi →</Link>
+            <Link to="/app/tournaments/create" style={{ color: 'var(--accent)', fontWeight: 700 }}>Créer un tournoi →</Link>
           ) : (
-            <Link to="/tournaments" style={{ color: 'var(--accent)', fontWeight: 700 }}>Voir tous les tournois →</Link>
+            <Link to="/app/tournaments" style={{ color: 'var(--accent)', fontWeight: 700 }}>Voir tous les tournois →</Link>
           )}
         </Card>
       ) : (
@@ -100,7 +100,7 @@ export function DashboardPage() {
         <SectionTitle>Actions rapides</SectionTitle>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {profile?.role === 'organizer' && (
-            <Link to="/tournaments/create">
+            <Link to="/app/tournaments/create">
               <Card style={{ padding: '14px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 20 }}>➕</span>
                 <span style={{ fontWeight: 700, fontFamily: 'var(--font-display)' }}>Créer un tournoi</span>
@@ -108,20 +108,20 @@ export function DashboardPage() {
             </Link>
           )}
           {(profile?.role === 'captain' || profile?.role === 'organizer') && (
-            <Link to="/club">
+            <Link to="/app/club">
               <Card style={{ padding: '14px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 20 }}>🛡</span>
                 <span style={{ fontWeight: 700, fontFamily: 'var(--font-display)' }}>Mon club</span>
               </Card>
             </Link>
           )}
-          <Link to="/matchmaking">
+          <Link to="/app/matchmaking">
             <Card style={{ padding: '14px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 20 }}>⚔</span>
               <span style={{ fontWeight: 700, fontFamily: 'var(--font-display)' }}>Matchmaking</span>
             </Card>
           </Link>
-          <Link to="/scores">
+          <Link to="/app/scores">
             <Card style={{ padding: '14px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 20 }}>✔</span>
               <span style={{ fontWeight: 700, fontFamily: 'var(--font-display)' }}>Soumettre un score</span>

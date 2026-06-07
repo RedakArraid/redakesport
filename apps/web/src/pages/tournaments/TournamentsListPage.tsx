@@ -50,7 +50,7 @@ export function TournamentsListPage() {
           <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>Tous les tournois de la plateforme</div>
         </div>
         {isOrganizer && (
-          <Link to="/tournaments/create">
+          <Link to="/app/tournaments/create">
             <Btn>+ Créer un tournoi</Btn>
           </Link>
         )}
@@ -72,14 +72,14 @@ export function TournamentsListPage() {
         <Card style={{ padding: 48, textAlign: 'center', color: 'var(--muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🏆</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Aucun tournoi trouvé</div>
-          {isOrganizer && <Link to="/tournaments/create"><Btn>Créer le premier tournoi</Btn></Link>}
+          {isOrganizer && <Link to="/app/tournaments/create"><Btn>Créer le premier tournoi</Btn></Link>}
         </Card>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
           {tournaments?.map((t) => {
             const sc = STATUS_COLORS[t.status]
             return (
-              <Link key={t.id} to={`/tournaments/${t.id}`} style={{ textDecoration: 'none' }}>
+              <Link key={t.id} to={`/app/tournaments/${t.id}`} style={{ textDecoration: 'none' }}>
                 <Card style={{ padding: '20px 22px', cursor: 'pointer', height: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: -0.3, lineHeight: 1.2, flex: 1 }}>

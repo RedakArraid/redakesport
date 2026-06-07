@@ -2,19 +2,18 @@ import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from '../../hooks/useAuth'
 import { useAuthStore } from '../../stores/authStore'
+import { NotificationBell } from '../ui/NotificationBell'
 
-interface NavItem { label: string; path: string; icon: string }
+interface NavItem { label: string; path: string; icon: string; exact?: boolean }
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: '⬡' },
-  { label: 'Tournois', path: '/tournaments', icon: '🏆' },
-  { label: 'Bracket', path: '/tournaments', icon: '⚡' },
-  { label: 'Classement', path: '/tournaments', icon: '📊' },
-  { label: 'Mon Club', path: '/club', icon: '🛡' },
-  { label: 'Scores', path: '/scores', icon: '✔' },
-  { label: 'Matchmaking', path: '/matchmaking', icon: '⚔' },
-  { label: 'Broadcast', path: '/broadcast', icon: '📡' },
-  { label: 'Intégrations', path: '/integrations', icon: '🔗' },
+  { label: 'Dashboard', path: '/app/dashboard', icon: '⬡' },
+  { label: 'Tournois', path: '/app/tournaments', icon: '🏆' },
+  { label: 'Mon Club', path: '/app/club', icon: '🛡' },
+  { label: 'Scores', path: '/app/scores', icon: '✔' },
+  { label: 'Matchmaking', path: '/app/matchmaking', icon: '⚔' },
+  { label: 'Broadcast', path: '/app/broadcast', icon: '📡' },
+  { label: 'Intégrations', path: '/app/integrations', icon: '🔗' },
 ]
 
 export function Sidebar() {
@@ -45,8 +44,11 @@ export function Sidebar() {
       {/* Nav */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
         {NAV.map((item) => (
-          <NavLink key={item.path + item.label} to={item.path}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
             <span className="nav-icon">{item.icon}</span>
             {item.label}
           </NavLink>
@@ -56,19 +58,28 @@ export function Sidebar() {
       {/* User footer */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 8 }}>
         <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
+          {/* Avatar → link to profile */}
+          <button onClick={() => navigate('/app/profile')} style={{
             width: 32, height: 32, borderRadius: '50%',
             background: 'var(--mute-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-display)',
+            border: 'none', cursor: 'pointer', flexShrink: 0,
           }}>
             {profile?.username?.[0]?.toUpperCase() ?? '?'}
-          </div>
+          </button>
+
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-display)', truncate: 'true', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{
+              fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-display)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {profile?.display_name ?? profile?.username ?? 'Joueur'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'capitalize' }}>{profile?.role ?? ''}</div>
           </div>
+
+          <NotificationBell />
+
           <button onClick={handleSignOut} title="Déconnexion" style={{
             background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)',
             fontSize: 16, padding: 4, borderRadius: 6,
