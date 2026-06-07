@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        - VITE_SUPABASE_URL=http://localhost:8001
+        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgwODE5MzQ0LCJleHAiOjE5Mzg0OTkzNDR9.cSVB6_W1lfQaiW6GV8tp5TiL8ea-VNme6XJYxg9JJmY
+    container_name: redakesport-web
+    ports:
+      - "5175:5173"
+    restart: unless-stopped
