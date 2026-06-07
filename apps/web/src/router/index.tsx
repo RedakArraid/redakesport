@@ -21,12 +21,12 @@ import { ScoresPage } from '../pages/scores/ScoresPage'
 import { MatchmakingPage } from '../pages/matchmaking/MatchmakingPage'
 import { ProfilePage } from '../pages/profile/ProfilePage'
 import { AnalyticsPage } from '../pages/tournaments/AnalyticsPage'
-import GroupsPage from '../pages/tournaments/GroupsPage'
-import CalendarPage from '../pages/calendar/CalendarPage'
-import LeaderboardPage from '../pages/leaderboard/LeaderboardPage'
-import BroadcastPage from '../pages/broadcast/BroadcastPage'
-import IntegrationsPage from '../pages/integrations/IntegrationsPage'
-import AdminPage from '../pages/admin/AdminPage'
+import { GroupsPage } from '../pages/tournaments/GroupsPage'
+import { CalendarPage } from '../pages/calendar/CalendarPage'
+import { LeaderboardPage } from '../pages/leaderboard/LeaderboardPage'
+import { BroadcastPage } from '../pages/broadcast/BroadcastPage'
+import { IntegrationsPage } from '../pages/integrations/IntegrationsPage'
+import { AdminPage } from '../pages/admin/AdminPage'
 
 export const router = createBrowserRouter([
   // Public landing
