@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.env.local
+apps/web/dist/
+apps/web/node_modules/
+.supabase/

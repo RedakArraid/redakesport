@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Redak — Tournament OS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@600;700;800;900&family=Fraunces:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+
+<style>
+  :root {
+    /* Theme tokens — light cream, ink black, vibrant red accent */
+    --bg: #f6f3eb;
+    --card: #ffffff;
+    --ink: #0f0f10;
+    --muted: #71706b;
+    --border: #e8e3d6;
+    --mute-bg: #f1ede1;
+    --accent: #ff3b30;
+    --blue: #2547ff;
+
+    /* Fonts — sportif by default; éditorial swappable via tweak */
+    --font-display: 'Archivo', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button { font-family: inherit; }
+
+  /* Custom scrollbar — discreet */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  .screen-enter { animation: fadeIn 0.25s ease; }
+
+  /* Sidebar nav item */
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.005em;
+    transition: background 0.15s;
+    border: none; background: transparent; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--mute-bg); }
+  .nav-item.active { background: var(--ink); color: var(--card); }
+  .nav-item.active .nav-icon { color: var(--accent); }
+  .nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Topnav variant */
+  .topnav-item {
+    padding: 8px 14px; border-radius: 999px;
+    font-family: var(--font-display); font-weight: 600; font-size: 13px;
+    color: var(--ink); cursor: pointer; background: transparent;
+    border: none; white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .topnav-item:hover { background: var(--mute-bg); }
+  .topnav-item.active { background: var(--ink); color: var(--card); }
+
+  /* Editorial typography swap */
+  [data-typo="editorial"] {
+    --font-display: 'Fraunces', serif;
+  }
+
+  /* Hide tweaks panel when not in tweaks mode */
+  #tweaks-host:empty { display: none; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Pinned React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Tweaks panel + app modules -->
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="screens-overview.jsx"></script>
+<script type="text/babel" src="screens-competition.jsx"></script>
+<script type="text/babel" src="screens-detail.jsx"></script>
+<script type="text/babel" src="screens-club.jsx"></script>
+<script type="text/babel" src="screens-scores.jsx"></script>
+<script type="text/babel" src="screens-pro1.jsx"></script>
+<script type="text/babel" src="screens-pro2.jsx"></script>
+<script type="text/babel" src="screens-pro3.jsx"></script>
+<script type="text/babel" src="landing.jsx"></script>
+
+<script type="text/babel">
+// ============================================================
+// NAV ITEMS
+// ============================================================
+const NAV = [
+  { group: 'Découvrir', items: [
+    { id: 'landing', label: 'Page d\'accueil', icon: '⌂' },
+  ]},
+  { group: 'Vue d\'ensemble', items: [
+    { id: 'dashboard', label: 'Dashboard', icon: '◧' },
+    { id: 'calendar', label: 'Calendrier', icon: '▦' },
+  ]},
+  { group: 'Compétition', items: [
+    { id: 'bracket', label: 'Bracket', icon: '◑' },
+    { id: 'groups', label: 'Poules', icon: '◰' },
+    { id: 'standings', label: 'Classement', icon: '≣' },
+    { id: 'scores', label: 'Scores & litiges', icon: '✓', badge: '4' },
+  ]},
+  { group: 'Détails', items: [
+    { id: 'match', label: 'Match LIVE', icon: '●', live: true },
+    { id: 'player', label: 'Profil joueur', icon: '◐' },
+    { id: 'media', label: 'Médiathèque', icon: '◳' },
+  ]},
+  { group: 'Mon club', items: [
+    { id: 'club', label: 'Mon club', icon: '◆', badge: 'NVX' },
+    { id: 'join', label: 'Rejoindre un club', icon: '⊕' },
+    { id: 'marketplace', label: 'Marketplace', icon: '⚜', badge: 'NEW' },
+  ]},
+  { group: 'Pro tools', items: [
+    { id: 'matchmaking', label: 'Matchmaking', icon: '⚑' },
+    { id: 'broadcast', label: 'Broadcast studio', icon: '◒' },
+    { id: 'advanced', label: 'Stats avancées', icon: '▲' },
+    { id: 'wallet', label: 'Wallet & sponsors', icon: '¤' },
+  ]},
+  { group: 'Plateforme', items: [
+    { id: 'integrations', label: 'Intégrations', icon: '⚡' },
+    { id: 'event', label: 'Page publique', icon: '◊' },
+    { id: 'wizard', label: 'Créer un tournoi', icon: '+' },
+  ]},
+];
+
+// ============================================================
+// DEFAULTS
+// ============================================================
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "bracketStyle": "classic",
+  "density": "compact",
+  "navLayout": "sidebar",
+  "mode": "admin",
+  "typo": "sport"
+}/*EDITMODE-END*/;
+
+// ============================================================
+// APP
+// ============================================================
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [route, setRoute] = React.useState(() => location.hash.replace('#', '') || 'landing');
+
+  React.useEffect(() => {
+    const onHash = () => setRoute(location.hash.replace('#', '') || 'dashboard');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  const navTo = (id) => {
+    location.hash = id;
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const props = {
+    density: t.density,
+    creative: t.bracketStyle === 'creative',
+    navTo,
+    isAdmin: t.mode === 'admin',
+  };
+
+  let screen;
+  switch (route) {
+    case 'dashboard': screen = <ScreenDashboard {...props} />; break;
+    case 'calendar': screen = <ScreenCalendar {...props} />; break;
+    case 'bracket': screen = <ScreenBracket {...props} />; break;
+    case 'groups': screen = <ScreenGroups {...props} />; break;
+    case 'standings': screen = <ScreenStandings {...props} />; break;
+    case 'match': screen = <ScreenMatch {...props} />; break;
+    case 'player': screen = <ScreenPlayer {...props} />; break;
+    case 'media': screen = <ScreenMedia {...props} />; break;
+    case 'event': screen = <ScreenEvent {...props} />; break;
+    case 'wizard': screen = <ScreenWizard {...props} />; break;
+    case 'club': screen = <ScreenClub {...props} />; break;
+    case 'join': screen = <ScreenJoinClub {...props} />; break;
+    case 'scores': screen = <ScreenScores {...props} />; break;
+    case 'landing': screen = <ScreenLanding {...props} />; break;
+    case 'matchmaking': screen = <ScreenMatchmaking {...props} />; break;
+    case 'marketplace': screen = <ScreenMarketplace {...props} />; break;
+    case 'broadcast': screen = <ScreenBroadcast {...props} />; break;
+    case 'wallet': screen = <ScreenWallet {...props} />; break;
+    case 'integrations': screen = <ScreenIntegrations {...props} />; break;
+    case 'advanced': screen = <ScreenAdvanced {...props} />; break;
+    default: screen = <ScreenDashboard {...props} />;
+  }
+
+  // Pad based on density
+  const contentPad = t.density === 'compact' ? 24 : t.density === 'comfy' ? 36 : 30;
+
+  return (
+    <div data-typo={t.typo === 'editorial' ? 'editorial' : 'sport'}>
+      {t.navLayout === 'sidebar' ? (
+        <SidebarLayout route={route} navTo={navTo} contentPad={route === 'landing' ? 0 : contentPad} hideShell={route === 'landing'}>
+          <div className="screen-enter" key={route}>{screen}</div>
+        </SidebarLayout>
+      ) : (
+        <TopnavLayout route={route} navTo={navTo} contentPad={route === 'landing' ? 0 : contentPad} hideShell={route === 'landing'}>
+          <div className="screen-enter" key={route}>{screen}</div>
+        </TopnavLayout>
+      )}
+
+      <TweaksPanel>
+        <TweakSection label="Layout" />
+        <TweakRadio label="Navigation" value={t.navLayout}
+          options={['sidebar', 'topnav']}
+          onChange={(v) => setTweak('navLayout', v)} />
+        <TweakRadio label="Densité" value={t.density}
+          options={['compact', 'comfy']}
+          onChange={(v) => setTweak('density', v)} />
+
+        <TweakSection label="Style" />
+        <TweakRadio label="Bracket" value={t.bracketStyle}
+          options={['classic', 'creative']}
+          onChange={(v) => setTweak('bracketStyle', v)} />
+        <TweakRadio label="Typographie" value={t.typo}
+          options={['sport', 'editorial']}
+          onChange={(v) => setTweak('typo', v)} />
+
+        <TweakSection label="Mode" />
+        <TweakRadio label="Affichage" value={t.mode}
+          options={['admin', 'public']}
+          onChange={(v) => setTweak('mode', v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+// ============================================================
+// SIDEBAR LAYOUT
+// ============================================================
+function SidebarLayout({ route, navTo, children, contentPad, hideShell }) {
+  if (hideShell) {
+    return <main style={{ padding: 0 }}>{children}</main>;
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '100vh' }}>
+      <aside style={{
+        background: 'var(--card)', borderRight: '1px solid var(--border)',
+        padding: '24px 18px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto'
+      }}>
+        <div style={{ padding: '0 6px 16px', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+          <RedakLogo size={28} />
+          <div style={{
+            marginTop: 12, fontFamily: 'var(--font-mono)', fontSize: 10,
+            letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)'
+          }}>
+            Tournament OS · v2.6
+          </div>
+        </div>
+
+        <TournamentSwitcher />
+
+        <div style={{ marginTop: 18 }}>
+          {NAV.map(group => (
+            <div key={group.group} style={{ marginBottom: 18 }}>
+              <div style={{
+                padding: '0 12px 8px', fontFamily: 'var(--font-mono)', fontSize: 10,
+                letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600
+              }}>{group.group}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {group.items.map(it => (
+                  <button key={it.id} className={`nav-item ${route === it.id ? 'active' : ''}`} onClick={() => navTo(it.id)}>
+                    <span className="nav-icon" style={{ fontSize: 14 }}>{it.icon}</span>
+                    <span>{it.label}</span>
+                    {it.live && <span style={{
+                      marginLeft: 'auto', background: 'var(--accent)', color: '#fff',
+                      fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                      fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', fontWeight: 800
+                    }}>LIVE</span>}
+                    {it.badge && !it.live && <span style={{
+                      marginLeft: 'auto', background: 'var(--mute-bg)', color: 'var(--muted)',
+                      fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                      fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', fontWeight: 800
+                    }}>{it.badge}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 'auto', padding: '14px 12px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: '#fff',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontFamily: 'var(--font-display)'
+          }}>R</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13 }}>Redak Esports</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Organisateur · Pro</div>
+          </div>
+        </div>
+      </aside>
+      <main style={{ padding: contentPad, minWidth: 0 }}>
+        <TopBar route={route} navTo={navTo} />
+        {children}
+      </main>
+    </div>
+  );
+}
+
+// ============================================================
+// TOPNAV LAYOUT
+// ============================================================
+function TopnavLayout({ route, navTo, children, contentPad, hideShell }) {
+  if (hideShell) {
+    return <main style={{ padding: 0 }}>{children}</main>;
+  }
+  return (
+    <div>
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--card)', borderBottom: '1px solid var(--border)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 28px', gap: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            <RedakLogo size={24} />
+            <nav style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+              {NAV.flatMap(g => g.items).map(it => (
+                <button key={it.id} className={`topnav-item ${route === it.id ? 'active' : ''}`} onClick={() => navTo(it.id)}>
+                  {it.label}{it.live && <span style={{ marginLeft: 4, color: 'var(--accent)' }}>●</span>}
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input placeholder="Rechercher…" style={{
+              padding: '8px 14px', borderRadius: 999, border: '1px solid var(--border)',
+              background: 'var(--mute-bg)', fontSize: 13, outline: 'none', width: 200
+            }} />
+            <span style={{
+              width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: '#fff',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 800, fontFamily: 'var(--font-display)'
+            }}>R</span>
+          </div>
+        </div>
+      </header>
+      <main style={{ padding: contentPad, maxWidth: 1600, margin: '0 auto' }}>
+        {children}
+      </main>
+    </div>
+  );
+}
+
+// ============================================================
+// TOP BAR (inside sidebar layout main area)
+// ============================================================
+function TopBar({ route, navTo }) {
+  const current = NAV.flatMap(g => g.items).find(i => i.id === route);
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      marginBottom: 24, gap: 18
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <span>Redak Cup 2026</span>
+        <span>›</span>
+        <span style={{ color: 'var(--ink)', fontWeight: 700 }}>{current?.label || 'Dashboard'}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input placeholder="Rechercher équipe, joueur, match…" style={{
+          padding: '8px 14px 8px 36px', borderRadius: 999, border: '1px solid var(--border)',
+          background: 'var(--card)', fontSize: 13, outline: 'none', width: 280,
+          backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-4-4'/></svg>")`,
+          backgroundRepeat: 'no-repeat', backgroundPosition: '12px center'
+        }} />
+        <Btn variant="ghost" size="md">🔔 3</Btn>
+        <Btn variant="primary" size="md" onClick={() => navTo('wizard')}>+ Nouveau tournoi</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// TOURNAMENT SWITCHER (sidebar widget)
+// ============================================================
+function TournamentSwitcher() {
+  return (
+    <div style={{
+      padding: 12, border: '1px solid var(--border)', borderRadius: 12,
+      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer'
+    }}>
+      <span style={{
+        width: 36, height: 36, borderRadius: 9, background: 'var(--accent)', color: '#fff',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 800, fontFamily: 'var(--font-display)', fontSize: 15
+      }}>RC</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, letterSpacing: '-0.005em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          Redak Cup 2026
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 6, height: 6, background: 'var(--accent)', borderRadius: 3, animation: 'pulse 1.2s infinite' }}></span>
+          EN DIRECT
+        </div>
+      </div>
+      <span style={{ color: 'var(--muted)' }}>⌄</span>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
