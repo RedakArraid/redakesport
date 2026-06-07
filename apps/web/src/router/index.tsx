@@ -20,6 +20,13 @@ import { ClubPage } from '../pages/club/ClubPage'
 import { ScoresPage } from '../pages/scores/ScoresPage'
 import { MatchmakingPage } from '../pages/matchmaking/MatchmakingPage'
 import { ProfilePage } from '../pages/profile/ProfilePage'
+import { AnalyticsPage } from '../pages/tournaments/AnalyticsPage'
+import GroupsPage from '../pages/tournaments/GroupsPage'
+import CalendarPage from '../pages/calendar/CalendarPage'
+import LeaderboardPage from '../pages/leaderboard/LeaderboardPage'
+import BroadcastPage from '../pages/broadcast/BroadcastPage'
+import IntegrationsPage from '../pages/integrations/IntegrationsPage'
+import AdminPage from '../pages/admin/AdminPage'
 
 export const router = createBrowserRouter([
   // Public landing
@@ -57,6 +64,8 @@ export const router = createBrowserRouter([
       { path: 'tournaments/:id', element: <TournamentDetailPage /> },
       { path: 'tournaments/:id/bracket', element: <BracketPage /> },
       { path: 'tournaments/:id/standings', element: <StandingsPage /> },
+      { path: 'tournaments/:id/groups', element: <GroupsPage /> },
+      { path: 'tournaments/:id/analytics', element: <AnalyticsPage /> },
 
       // Matches
       { path: 'matches/:id', element: <MatchDetailPage /> },
@@ -75,9 +84,21 @@ export const router = createBrowserRouter([
       { path: 'scores', element: <ScoresPage /> },
       { path: 'matchmaking', element: <MatchmakingPage /> },
 
-      // Phase 2+ placeholders
-      { path: 'broadcast', element: <PlaceholderPage title="Broadcast Studio" icon="📡" phase={2} /> },
-      { path: 'integrations', element: <PlaceholderPage title="Intégrations" icon="🔗" phase={3} /> },
+      // Calendar & Leaderboard
+      { path: 'calendar', element: <CalendarPage /> },
+      { path: 'leaderboard', element: <LeaderboardPage /> },
+
+      // Phase 2+3 complete pages
+      { path: 'broadcast', element: <BroadcastPage /> },
+      { path: 'integrations', element: <IntegrationsPage /> },
+      {
+        path: 'admin',
+        element: (
+          <RoleRoute allowedRoles={['organizer']}>
+            <AdminPage />
+          </RoleRoute>
+        ),
+      },
     ],
   },
 

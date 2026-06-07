@@ -57,8 +57,13 @@ serve(async (req) => {
     matches = generateSingleElimination(teams, tournament_id)
   } else if (format === 'round_robin') {
     matches = generateRoundRobin(teams, tournament_id)
+  } else if (format === 'double_elimination') {
+    matches = generateDoubleElimination(teams, tournament_id)
+  } else if (format === 'hybrid') {
+    // Round robin for group stage + single elim bracket final
+    matches = generateHybrid(teams, tournament_id)
   } else {
-    // Default to single elimination for other formats
+    // Default to single elimination for unknown formats
     matches = generateSingleElimination(teams, tournament_id)
   }
 
@@ -74,6 +79,9 @@ serve(async (req) => {
   })
 })
 
+// =============================================
+// SINGLE ELIMINATION
+// =============================================
 function generateSingleElimination(teams: Record<string, unknown>[], tournamentId: string) {
   const matches: Record<string, unknown>[] = []
   const n = teams.length
@@ -169,6 +177,9 @@ function generateSingleElimination(teams: Record<string, unknown>[], tournamentI
   return matches
 }
 
+// =============================================
+// ROUND ROBIN
+// =============================================
 function generateRoundRobin(teams: Record<string, unknown>[], tournamentId: string) {
   const matches: Record<string, unknown>[] = []
   let matchNum = 1
@@ -182,6 +193,7 @@ function generateRoundRobin(teams: Record<string, unknown>[], tournamentId: stri
         tournament_id: tournamentId,
         round: 1,
         match_number: matchNum++,
+        bracket_position: { side: 'group', round: 1, position: matchNum },
         team1_id: (t1 as Record<string, unknown>)?.club_id ?? (t1 as Record<string, unknown>)?.player_id,
         team2_id: (t2 as Record<string, unknown>)?.club_id ?? (t2 as Record<string, unknown>)?.player_id,
         team1_type: 'club',
@@ -191,6 +203,293 @@ function generateRoundRobin(teams: Record<string, unknown>[], tournamentId: stri
       })
     }
   }
+
+  return matches
+}
+
+// =============================================
+// DOUBLE ELIMINATION
+// =============================================
+function generateDoubleElimination(teams: Record<string, unknown>[], tournamentId: string) {
+  const matches: Record<string, unknown>[] = []
+  const n = teams.length
+  const wRounds = Math.ceil(Math.log2(n))
+  const totalSlots = Math.pow(2, wRounds)
+
+  // Pad with byes for winners bracket
+  const paddedTeams = [...teams]
+  while (paddedTeams.length < totalSlots) paddedTeams.push(null as unknown as Record<string, unknown>)
+
+  // --- Pre-generate IDs for winners bracket ---
+  // winnersIds[round][pos]
+  const winnersIds: string[][] = []
+  for (let round = 1; round <= wRounds; round++) {
+    const count = Math.pow(2, wRounds - round)
+    winnersIds[round] = Array.from({ length: count }, () => crypto.randomUUID())
+  }
+
+  // --- Pre-generate IDs for losers bracket ---
+  // Losers bracket has 2*(wRounds-1) rounds
+  const lRounds = 2 * (wRounds - 1)
+  const losersIds: string[][] = []
+  for (let lr = 1; lr <= lRounds; lr++) {
+    // Matches in losers round lr:
+    // Odd rounds receive losers from winners → matches = 2^(wRounds - ceil(lr/2) - 1)
+    // Even rounds are "consolidation" rounds
+    const count = Math.max(1, Math.pow(2, wRounds - Math.ceil(lr / 2) - 1))
+    losersIds[lr] = Array.from({ length: count }, () => crypto.randomUUID())
+  }
+
+  // Grand Final ID
+  const grandFinalId = crypto.randomUUID()
+
+  // =====================
+  // Winners bracket
+  // =====================
+  // Round 1
+  const r1Count = totalSlots / 2
+  for (let i = 0; i < r1Count; i++) {
+    const t1 = paddedTeams[i * 2]
+    const t2 = paddedTeams[i * 2 + 1]
+    const id = winnersIds[1][i]
+    const nextMatchId = wRounds > 1 ? winnersIds[2]?.[Math.floor(i / 2)] ?? null : grandFinalId
+
+    // loser_match_id: loser goes to losers bracket round 1
+    // In round 1 of losers bracket, position maps to i
+    const loserMatchId = lRounds >= 1 ? losersIds[1]?.[Math.floor(i / 2)] ?? null : null
+
+    if (!t1 || !t2) {
+      const winner = t1 ?? t2
+      matches.push({
+        id,
+        tournament_id: tournamentId,
+        round: 1,
+        match_number: i + 1,
+        bracket_position: { side: 'winners', round: 1, position: i },
+        team1_id: (t1 as Record<string, unknown>)?.club_id ?? (t1 as Record<string, unknown>)?.player_id ?? null,
+        team2_id: null,
+        team1_type: 'club',
+        team2_type: 'club',
+        winner_id: (winner as Record<string, unknown>)?.club_id ?? (winner as Record<string, unknown>)?.player_id ?? null,
+        status: 'completed',
+        next_match_id: nextMatchId,
+        loser_match_id: null, // bye, no loser
+        best_of: 1,
+      })
+    } else {
+      matches.push({
+        id,
+        tournament_id: tournamentId,
+        round: 1,
+        match_number: i + 1,
+        bracket_position: { side: 'winners', round: 1, position: i },
+        team1_id: (t1 as Record<string, unknown>)?.club_id ?? (t1 as Record<string, unknown>)?.player_id,
+        team2_id: (t2 as Record<string, unknown>)?.club_id ?? (t2 as Record<string, unknown>)?.player_id,
+        team1_type: 'club',
+        team2_type: 'club',
+        status: 'pending',
+        next_match_id: nextMatchId,
+        loser_match_id: loserMatchId,
+        best_of: 1,
+      })
+    }
+  }
+
+  // Winners bracket rounds 2..wRounds
+  for (let round = 2; round <= wRounds; round++) {
+    const count = Math.pow(2, wRounds - round)
+    for (let pos = 0; pos < count; pos++) {
+      const id = winnersIds[round][pos]
+      const isWinnersFinal = round === wRounds
+      const nextMatchId = isWinnersFinal ? grandFinalId : winnersIds[round + 1]?.[Math.floor(pos / 2)] ?? null
+
+      // Loser from winners round `round` goes to losers round = round*2 - 2
+      const losersDestRound = round * 2 - 2
+      const loserMatchId = losersDestRound >= 1 && losersIds[losersDestRound]
+        ? losersIds[losersDestRound][pos] ?? null
+        : null
+
+      matches.push({
+        id,
+        tournament_id: tournamentId,
+        round,
+        match_number: pos + 1,
+        bracket_position: { side: 'winners', round, position: pos },
+        team1_id: null,
+        team2_id: null,
+        team1_type: 'club',
+        team2_type: 'club',
+        status: 'pending',
+        next_match_id: nextMatchId,
+        loser_match_id: loserMatchId,
+        best_of: isWinnersFinal ? 3 : 1,
+      })
+    }
+  }
+
+  // =====================
+  // Losers bracket
+  // =====================
+  for (let lr = 1; lr <= lRounds; lr++) {
+    const count = Math.max(1, Math.pow(2, wRounds - Math.ceil(lr / 2) - 1))
+    const isLosersFinal = lr === lRounds
+
+    for (let pos = 0; pos < count; pos++) {
+      const id = losersIds[lr][pos]
+      const nextMatchId = isLosersFinal
+        ? grandFinalId
+        : losersIds[lr + 1]?.[Math.floor(pos / 2)] ?? null
+
+      matches.push({
+        id,
+        tournament_id: tournamentId,
+        round: lr,
+        match_number: pos + 1,
+        bracket_position: { side: 'losers', round: lr, position: pos },
+        team1_id: null,
+        team2_id: null,
+        team1_type: 'club',
+        team2_type: 'club',
+        status: 'pending',
+        next_match_id: nextMatchId,
+        loser_match_id: null, // eliminated from tournament
+        best_of: isLosersFinal ? 3 : 1,
+      })
+    }
+  }
+
+  // =====================
+  // Grand Final
+  // =====================
+  matches.push({
+    id: grandFinalId,
+    tournament_id: tournamentId,
+    round: wRounds + lRounds + 1,
+    match_number: 1,
+    bracket_position: { side: 'grand_final', round: wRounds + lRounds + 1, position: 0 },
+    team1_id: null, // Winners bracket winner
+    team2_id: null, // Losers bracket winner
+    team1_type: 'club',
+    team2_type: 'club',
+    status: 'pending',
+    next_match_id: null,
+    loser_match_id: null,
+    best_of: 5, // Grand Final is BO5
+  })
+
+  return matches
+}
+
+// =============================================
+// HYBRID (round robin groups + single elim bracket)
+// =============================================
+function generateHybrid(teams: Record<string, unknown>[], tournamentId: string) {
+  const matches: Record<string, unknown>[] = []
+
+  // Split teams into 2 groups
+  const mid = Math.ceil(teams.length / 2)
+  const groupA = teams.slice(0, mid)
+  const groupB = teams.slice(mid)
+
+  let matchNum = 1
+
+  // Group A round robin
+  for (let i = 0; i < groupA.length; i++) {
+    for (let j = i + 1; j < groupA.length; j++) {
+      const t1 = groupA[i]
+      const t2 = groupA[j]
+      matches.push({
+        id: crypto.randomUUID(),
+        tournament_id: tournamentId,
+        round: 1,
+        match_number: matchNum++,
+        bracket_position: { side: 'group_a', round: 1, position: matchNum },
+        team1_id: (t1 as Record<string, unknown>)?.club_id ?? (t1 as Record<string, unknown>)?.player_id,
+        team2_id: (t2 as Record<string, unknown>)?.club_id ?? (t2 as Record<string, unknown>)?.player_id,
+        team1_type: 'club',
+        team2_type: 'club',
+        status: 'pending',
+        phase: 'group',
+        best_of: 1,
+      })
+    }
+  }
+
+  // Group B round robin
+  for (let i = 0; i < groupB.length; i++) {
+    for (let j = i + 1; j < groupB.length; j++) {
+      const t1 = groupB[i]
+      const t2 = groupB[j]
+      matches.push({
+        id: crypto.randomUUID(),
+        tournament_id: tournamentId,
+        round: 1,
+        match_number: matchNum++,
+        bracket_position: { side: 'group_b', round: 1, position: matchNum },
+        team1_id: (t1 as Record<string, unknown>)?.club_id ?? (t1 as Record<string, unknown>)?.player_id,
+        team2_id: (t2 as Record<string, unknown>)?.club_id ?? (t2 as Record<string, unknown>)?.player_id,
+        team1_type: 'club',
+        team2_type: 'club',
+        status: 'pending',
+        phase: 'group',
+        best_of: 1,
+      })
+    }
+  }
+
+  // Top 2 from each group advance to single elimination bracket (4 teams → SF + Final)
+  // Generate semi-finals: A1 vs B2, B1 vs A2
+  const sf1Id = crypto.randomUUID()
+  const sf2Id = crypto.randomUUID()
+  const finalId = crypto.randomUUID()
+
+  matches.push({
+    id: sf1Id,
+    tournament_id: tournamentId,
+    round: 2,
+    match_number: 1,
+    bracket_position: { side: 'winners', round: 2, position: 0 },
+    team1_id: null, // Group A 1st
+    team2_id: null, // Group B 2nd
+    team1_type: 'club',
+    team2_type: 'club',
+    status: 'pending',
+    next_match_id: finalId,
+    phase: 'bracket',
+    best_of: 3,
+  })
+
+  matches.push({
+    id: sf2Id,
+    tournament_id: tournamentId,
+    round: 2,
+    match_number: 2,
+    bracket_position: { side: 'winners', round: 2, position: 1 },
+    team1_id: null, // Group B 1st
+    team2_id: null, // Group A 2nd
+    team1_type: 'club',
+    team2_type: 'club',
+    status: 'pending',
+    next_match_id: finalId,
+    phase: 'bracket',
+    best_of: 3,
+  })
+
+  matches.push({
+    id: finalId,
+    tournament_id: tournamentId,
+    round: 3,
+    match_number: 1,
+    bracket_position: { side: 'winners', round: 3, position: 0 },
+    team1_id: null,
+    team2_id: null,
+    team1_type: 'club',
+    team2_type: 'club',
+    status: 'pending',
+    next_match_id: null,
+    phase: 'bracket',
+    best_of: 5,
+  })
 
   return matches
 }

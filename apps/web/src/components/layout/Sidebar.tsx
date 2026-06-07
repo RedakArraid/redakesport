@@ -12,8 +12,11 @@ const NAV: NavItem[] = [
   { label: 'Mon Club', path: '/app/club', icon: '🛡' },
   { label: 'Scores', path: '/app/scores', icon: '✔' },
   { label: 'Matchmaking', path: '/app/matchmaking', icon: '⚔' },
+  { label: 'Calendrier', path: '/app/calendar', icon: '📅' },
+  { label: 'Classement', path: '/app/leaderboard', icon: '🏅' },
   { label: 'Broadcast', path: '/app/broadcast', icon: '📡' },
   { label: 'Intégrations', path: '/app/integrations', icon: '🔗' },
+  { label: 'Admin', path: '/app/admin', icon: '⚙' },
 ]
 
 export function Sidebar() {

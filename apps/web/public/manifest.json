@@ -1,0 +1,36 @@
+{
+  "name": "Redak Esport",
+  "short_name": "Redak",
+  "description": "Le système d'exploitation de l'esport",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f3eb",
+  "theme_color": "#0f0f10",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/app/dashboard",
+      "description": "Voir mon tableau de bord"
+    },
+    {
+      "name": "Matchmaking",
+      "url": "/app/matchmaking",
+      "description": "Lancer une recherche de match"
+    },
+    {
+      "name": "Tournois",
+      "url": "/app/tournaments",
+      "description": "Voir les tournois actifs"
+    }
+  ],
+  "categories": ["games", "sports", "social"]
+}
