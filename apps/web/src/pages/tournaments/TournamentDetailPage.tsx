@@ -177,14 +177,18 @@ export function TournamentDetailPage() {
       )}
 
       {activeTab === 'bracket' && (
-        <Card style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>
-            {tournament.status === 'draft' || tournament.status === 'registration'
-              ? 'Le bracket sera généré quand les inscriptions seront fermées'
-              : 'Bracket en cours de chargement...'}
+        tournament.status === 'draft' || tournament.status === 'registration' ? (
+          <Card style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
+            <div style={{ fontWeight: 700 }}>Le bracket sera généré après la clôture des inscriptions</div>
+          </Card>
+        ) : (
+          <div style={{ textAlign: 'right', marginBottom: 8 }}>
+            <Link to={`/app/tournaments/${id}/bracket`} style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 700 }}>
+              Voir le bracket en plein écran →
+            </Link>
           </div>
-        </Card>
+        )
       )}
     </div>
   )

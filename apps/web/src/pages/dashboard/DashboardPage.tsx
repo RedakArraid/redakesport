@@ -72,7 +72,7 @@ export function DashboardPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {tournaments?.map((t) => (
-            <Link key={t.id} to={`/tournaments/${t.id}`} style={{ textDecoration: 'none' }}>
+            <Link key={t.id} to={`/app/tournaments/${t.id}`} style={{ textDecoration: 'none' }}>
               <Card style={{ padding: '18px 20px', cursor: 'pointer', transition: 'box-shadow 0.15s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, letterSpacing: -0.3 }}>
