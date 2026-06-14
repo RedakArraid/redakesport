@@ -185,3 +185,10 @@ CREATE OR REPLACE VIEW leaderboard AS
     RANK() OVER (ORDER BY elo_rating DESC) AS rank
   FROM profiles
   ORDER BY elo_rating DESC;
+
+-- Fixes for Discord integrations & Profiles webhook
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS discord_webhook text;
+ALTER TABLE discord_integrations ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES profiles(id) ON DELETE CASCADE;
+
+CREATE POLICY "Users manage own integrations" ON discord_integrations
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());

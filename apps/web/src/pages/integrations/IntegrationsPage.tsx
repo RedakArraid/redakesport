@@ -121,7 +121,7 @@ export function IntegrationsPage() {
     const { data: clubMembers } = await supabase
       .from('club_members')
       .select('club_id')
-      .eq('user_id', user.id)
+      .eq('player_id', user.id)
     const teamIds = (clubMembers ?? []).map(c => c.club_id)
 
     let matchQuery = supabase

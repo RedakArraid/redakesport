@@ -89,7 +89,7 @@ export function CalendarPage() {
       const { data } = await supabase
         .from('club_members')
         .select('club_id')
-        .eq('user_id', user.id)
+        .eq('player_id', user.id)
       return (data ?? []).map(r => r.club_id)
     },
     enabled: !!user,

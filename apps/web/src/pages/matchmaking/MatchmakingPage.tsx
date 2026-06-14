@@ -64,6 +64,19 @@ export function MatchmakingPage() {
   const inQueue = !!queueEntry && queueEntry.status === 'searching'
   const matched = queueEntry?.status === 'matched'
 
+  React.useEffect(() => {
+    if (!inQueue) return
+
+    // Appeler matchmaking-tick immédiatement
+    supabase.functions.invoke('matchmaking-tick').catch(console.error)
+
+    const interval = setInterval(() => {
+      supabase.functions.invoke('matchmaking-tick').catch(console.error)
+    }, 10000) // Toutes les 10 secondes
+
+    return () => clearInterval(interval)
+  }, [inQueue])
+
   return (
     <div className="screen-enter">
       <div style={{ marginBottom: 24 }}>

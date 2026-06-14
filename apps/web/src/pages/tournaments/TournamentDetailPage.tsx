@@ -20,9 +20,9 @@ export function TournamentDetailPage() {
   const { data: tournament, isLoading } = useQuery({
     queryKey: ['tournament', id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('tournaments').select('*').eq('id', id!).single()
+      const { data, error } = await supabase.from('tournaments').select('*, game:games(name)').eq('id', id!).single()
       if (error) throw error
-      return data as Tournament
+      return data as Tournament & { game?: { name: string } | null }
     },
     enabled: !!id,
   })
@@ -85,6 +85,7 @@ export function TournamentDetailPage() {
               {tournament.name}
             </div>
             <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              {tournament.game?.name && <span>🎮 {tournament.game.name}</span>}
               <span>📋 {tournament.format.replace(/_/g, ' ')}</span>
               {tournament.region && <span>🌍 {tournament.region}</span>}
               {tournament.start_date && <span>📅 {format(new Date(tournament.start_date), 'd MMM yyyy', { locale: fr })}</span>}

@@ -145,7 +145,7 @@ function ClubApplications({ clubId }: { clubId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('club_applications')
-        .select('*, profiles(*)')
+        .select('*, profiles:profiles!club_applications_player_id_fkey(*)')
         .eq('club_id', clubId)
         .eq('status', 'pending')
       if (error) throw error
