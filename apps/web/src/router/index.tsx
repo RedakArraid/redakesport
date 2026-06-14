@@ -40,6 +40,11 @@ export const router = createBrowserRouter([
       { path: 'register', element: <RegisterPage /> },
       { path: 'onboarding', element: <OnboardingPage /> },
       { path: 'auth/callback', element: <AuthCallbackPage /> },
+      { path: 'tournaments', element: <TournamentsListPage /> },
+      { path: 'tournaments/:id', element: <TournamentDetailPage /> },
+      { path: 'tournaments/:id/bracket', element: <BracketPage /> },
+      { path: 'tournaments/:id/standings', element: <StandingsPage /> },
+      { path: 'tournaments/:id/groups', element: <GroupsPage /> },
     ],
   },
 
@@ -102,7 +107,6 @@ export const router = createBrowserRouter([
 
   // Legacy redirect: /dashboard → /app/dashboard
   { path: '/dashboard', element: <Navigate to="/app/dashboard" replace /> },
-  { path: '/tournaments', element: <Navigate to="/app/tournaments" replace /> },
   { path: '/club', element: <Navigate to="/app/club" replace /> },
   { path: '/scores', element: <Navigate to="/app/scores" replace /> },
   { path: '/matchmaking', element: <Navigate to="/app/matchmaking" replace /> },

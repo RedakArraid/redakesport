@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore, useIsOrganizer } from '../../stores/authStore'
@@ -15,6 +15,8 @@ export function TournamentDetailPage() {
   const isOrganizer = useIsOrganizer()
   const { addToast } = useUIStore()
   const qc = useQueryClient()
+  const location = useLocation()
+  const isApp = location.pathname.startsWith('/app')
   const [activeTab, setActiveTab] = useState<'overview' | 'bracket' | 'teams'>('overview')
 
   const { data: tournament, isLoading } = useQuery({
@@ -144,7 +146,11 @@ export function TournamentDetailPage() {
             {/* Inscription Solo ou Équipe */}
             {!isOrganizer && tournament.status === 'registration' && (
               <>
-                {isTeamTournament ? (
+                {!user ? (
+                  <Link to="/login">
+                    <Btn>Se connecter pour s'inscrire</Btn>
+                  </Link>
+                ) : isTeamTournament ? (
                   profile?.role === 'captain' ? (
                     captainClub ? (
                       !myRegistration && (
@@ -256,7 +262,7 @@ export function TournamentDetailPage() {
           </Card>
         ) : (
           <div style={{ textAlign: 'right', marginBottom: 8 }}>
-            <Link to={`/app/tournaments/${id}/bracket`} style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 700 }}>
+            <Link to={isApp ? `/app/tournaments/${id}/bracket` : `/tournaments/${id}/bracket`} style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 700 }}>
               Voir le bracket en plein écran →
             </Link>
           </div>

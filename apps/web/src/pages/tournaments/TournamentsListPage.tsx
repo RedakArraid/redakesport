@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useIsOrganizer } from '../../stores/authStore'
@@ -22,6 +22,7 @@ const STATUS_COLORS: Record<TournamentStatus, { color: string; bg: string }> = {
 
 export function TournamentsListPage() {
   const isOrganizer = useIsOrganizer()
+  const location = useLocation()
   const [filter, setFilter] = useState<TournamentStatus | 'all'>('all')
 
   const { data: tournaments, isLoading } = useQuery({
@@ -78,8 +79,9 @@ export function TournamentsListPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
           {tournaments?.map((t) => {
             const sc = STATUS_COLORS[t.status]
+            const basePath = location.pathname.startsWith('/app') ? '/app/tournaments' : '/tournaments'
             return (
-              <Link key={t.id} to={`/app/tournaments/${t.id}`} style={{ textDecoration: 'none' }}>
+              <Link key={t.id} to={`${basePath}/${t.id}`} style={{ textDecoration: 'none' }}>
                 <Card style={{ padding: '20px 22px', cursor: 'pointer', height: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: -0.3, lineHeight: 1.2, flex: 1 }}>
