@@ -1,6 +1,7 @@
 import React from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
+import { PublicLayout } from '../components/layout/PublicLayout'
 import { ProtectedRoute } from './ProtectedRoute'
 import { RoleRoute } from './RoleRoute'
 
@@ -29,14 +30,18 @@ import { IntegrationsPage } from '../pages/integrations/IntegrationsPage'
 import { AdminPage } from '../pages/admin/AdminPage'
 
 export const router = createBrowserRouter([
-  // Public landing
-  { path: '/', element: <LandingPage /> },
-
-  // Auth routes
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
-  { path: '/onboarding', element: <OnboardingPage /> },
-  { path: '/auth/callback', element: <AuthCallbackPage /> },
+  // Public routes (with Header and Footer)
+  {
+    path: '/',
+    element: <PublicLayout />,
+    children: [
+      { index: true, element: <LandingPage /> },
+      { path: 'login', element: <LoginPage /> },
+      { path: 'register', element: <RegisterPage /> },
+      { path: 'onboarding', element: <OnboardingPage /> },
+      { path: 'auth/callback', element: <AuthCallbackPage /> },
+    ],
+  },
 
   // Protected app routes
   {

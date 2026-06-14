@@ -82,8 +82,8 @@ export function RegisterPage() {
 }
 
 const pageStyle: React.CSSProperties = {
-  minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  background: 'var(--bg)', padding: 16,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: '60px 16px', flex: 1,
 }
 const boxStyle: React.CSSProperties = {
   background: 'var(--card)', borderRadius: 20, border: '1px solid var(--border)',

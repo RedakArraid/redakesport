@@ -4,21 +4,7 @@ import { Btn } from '../../components/ui'
 
 export function LandingPage() {
   return (
-    <div style={{ fontFamily: 'var(--font-body)', background: 'var(--bg)', minHeight: '100vh' }}>
-      {/* Nav */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 32px', borderBottom: '1px solid var(--border)',
-        position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 100,
-      }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 20, letterSpacing: -0.5 }}>
-          <span style={{ color: 'var(--accent)' }}>Redak</span> Esport
-        </span>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Link to="/login"><Btn variant="ghost" size="sm">Connexion</Btn></Link>
-          <Link to="/register"><Btn size="sm">S'inscrire</Btn></Link>
-        </div>
-      </nav>
+    <div style={{ fontFamily: 'var(--font-body)', background: 'var(--bg)', flex: 1 }}>
 
       {/* Hero */}
       <section style={{ textAlign: 'center', padding: '80px 24px 60px', maxWidth: 860, margin: '0 auto' }}>
@@ -116,13 +102,6 @@ export function LandingPage() {
         <Link to="/register"><Btn size="lg">Créer mon compte →</Btn></Link>
       </section>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '20px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 15 }}>
-          <span style={{ color: 'var(--accent)' }}>Redak</span> Esport
-        </span>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>© 2026 Redak Esport · Tous droits réservés</span>
-      </footer>
     </div>
   )
 }

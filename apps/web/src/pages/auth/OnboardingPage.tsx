@@ -37,7 +37,7 @@ export function OnboardingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '60px 16px', flex: 1 }}>
       <div style={{ width: '100%', maxWidth: 560 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 28, letterSpacing: -1, marginBottom: 8 }}>
