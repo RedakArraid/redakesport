@@ -28,9 +28,9 @@ interface ScoreSubmission {
   id: string
   match_id: string
   submitted_by: string
+  team_id: string | null
   score_team1: number
   score_team2: number
-  winner_id: string
   submitter_name?: string
 }
 
@@ -39,7 +39,7 @@ interface Tournament {
   name: string
   status: TournamentStatus
   organizer_id: string
-  game: string | null
+  game_id: string | null
   created_at: string
 }
 
@@ -127,12 +127,16 @@ export function AdminPage() {
   })
 
   const validateScore = useMutation({
-    mutationFn: async ({ matchId, submission }: { matchId: string; submission: ScoreSubmission }) => {
+    mutationFn: async ({ matchId, submission, match }: { matchId: string; submission: ScoreSubmission; match: DisputedMatch }) => {
+      // Determine winner from score (team with higher score wins)
+      const winnerId = submission.score_team1 >= submission.score_team2
+        ? match.team1_id
+        : match.team2_id
       const { error } = await supabase
         .from('matches')
         .update({
           status: 'completed',
-          winner_id: submission.winner_id,
+          winner_id: winnerId,
           score_team1: submission.score_team1,
           score_team2: submission.score_team2,
         })
@@ -149,7 +153,7 @@ export function AdminPage() {
       if (!user) return []
       const { data, error } = await supabase
         .from('tournaments')
-        .select('id, name, status, organizer_id, game, created_at')
+        .select('id, name, status, organizer_id, game_id, created_at')
         .eq('organizer_id', user.id)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -295,7 +299,7 @@ export function AdminPage() {
                               </div>
                               <Btn
                                 size="sm"
-                                onClick={() => validateScore.mutate({ matchId: match.id, submission: sub })}
+                                onClick={() => validateScore.mutate({ matchId: match.id, submission: sub, match })}
                                 loading={validateScore.isPending}
                               >
                                 ✓ Valider ce score
@@ -333,7 +337,7 @@ export function AdminPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>{t.name}</div>
-                      {t.game && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{t.game}</div>}
+                      {t.game_id && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>ID jeu: {t.game_id.slice(0, 8)}</div>}
                     </div>
 
                     <div style={{

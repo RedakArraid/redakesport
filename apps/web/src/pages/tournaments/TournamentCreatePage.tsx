@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
@@ -11,6 +12,7 @@ import type { TournamentFormat } from '../../types/database'
 
 const schema = z.object({
   name: z.string().min(3, 'Nom requis (min 3 caractères)'),
+  game_id: z.string().uuid('Sélectionne un jeu').optional(),
   format: z.enum(['single_elimination', 'double_elimination', 'round_robin', 'swiss', 'hybrid']),
   max_teams: z.number().min(2).max(256).optional(),
   team_size: z.number().min(1).max(11).default(5),
@@ -36,6 +38,14 @@ export function TournamentCreatePage() {
   const { user } = useAuthStore()
   const { addToast } = useUIStore()
 
+  const { data: games } = useQuery({
+    queryKey: ['games'],
+    queryFn: async () => {
+      const { data } = await supabase.from('games').select('id, name').eq('is_active', true).order('name')
+      return data ?? []
+    },
+  })
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { format: 'single_elimination', team_size: 5 },
@@ -47,6 +57,7 @@ export function TournamentCreatePage() {
       name: data.name,
       slug,
       format: data.format,
+      game_id: data.game_id || null,
       max_teams: data.max_teams ?? null,
       team_size: data.team_size,
       region: data.region || null,
@@ -77,6 +88,14 @@ export function TournamentCreatePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Field label="Nom du tournoi *" error={errors.name?.message}>
               <input {...register('name')} placeholder="Redak Cup 2026" style={inputStyle} />
+            </Field>
+            <Field label="Jeu" error={errors.game_id?.message}>
+              <select {...register('game_id')} style={inputStyle}>
+                <option value="">-- Sélectionner un jeu --</option>
+                {games?.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Format *" error={errors.format?.message}>
               <select {...register('format')} style={inputStyle}>

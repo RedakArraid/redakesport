@@ -11,7 +11,7 @@ type Platform = typeof PLATFORMS[number]
 
 interface BroadcastSession {
   id: string
-  user_id: string
+  organizer_id: string
   title: string
   platform: Platform
   stream_key: string | null
@@ -101,7 +101,7 @@ export function BroadcastPage() {
       const { data, error } = await supabase
         .from('broadcast_sessions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('organizer_id', user.id)
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as BroadcastSession[]
@@ -115,7 +115,7 @@ export function BroadcastPage() {
       const { error } = await supabase
         .from('broadcast_sessions')
         .insert({
-          user_id: user.id,
+          organizer_id: user.id,
           title: form.title,
           platform: form.platform,
           stream_key: form.stream_key || null,
@@ -404,45 +404,22 @@ export function BroadcastPage() {
               Retrouvez tous les guides pour les casters sur notre documentation officielle.
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <a
-                href="https://docs.redakesport.com/caster-guide"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '8px 18px', borderRadius: 999,
-                  background: 'var(--mute-bg)', color: 'var(--ink)',
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
-                  textDecoration: 'none', border: '1.5px solid var(--border)',
-                }}
-              >
-                Guide Caster
-              </a>
-              <a
-                href="https://docs.redakesport.com/overlays"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '8px 18px', borderRadius: 999,
-                  background: 'var(--mute-bg)', color: 'var(--ink)',
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
-                  textDecoration: 'none', border: '1.5px solid var(--border)',
-                }}
-              >
-                Guide Overlays
-              </a>
-              <a
-                href="https://docs.redakesport.com/discord-bot"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '8px 18px', borderRadius: 999,
-                  background: 'var(--mute-bg)', color: 'var(--ink)',
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
-                  textDecoration: 'none', border: '1.5px solid var(--border)',
-                }}
-              >
-                Bot Discord
-              </a>
+              {['Guide Caster', 'Guide Overlays', 'Bot Discord'].map(label => (
+                <a
+                  key={label}
+                  href={`https://docs.redakesport.com/${label.toLowerCase().replace(' ', '-')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '8px 18px', borderRadius: 999,
+                    background: 'var(--mute-bg)', color: 'var(--ink)',
+                    fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+                    textDecoration: 'none', border: '1.5px solid var(--border)',
+                  }}
+                >
+                  {label}
+                </a>
+              ))}
             </div>
           </Card>
         </div>

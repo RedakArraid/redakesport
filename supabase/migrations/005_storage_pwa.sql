@@ -41,9 +41,9 @@ CREATE POLICY "Club managers can upload club assets"
   WITH CHECK (
     bucket_id = 'club-assets'
     AND auth.uid() IN (
-      SELECT user_id FROM club_members
+      SELECT player_id FROM club_members
       WHERE club_id::text = (storage.foldername(name))[1]
-        AND role IN ('owner', 'manager')
+        AND role IN ('captain', 'coach')
     )
   );
 
@@ -52,9 +52,9 @@ CREATE POLICY "Club managers can update club assets"
   USING (
     bucket_id = 'club-assets'
     AND auth.uid() IN (
-      SELECT user_id FROM club_members
+      SELECT player_id FROM club_members
       WHERE club_id::text = (storage.foldername(name))[1]
-        AND role IN ('owner', 'manager')
+        AND role IN ('captain', 'coach')
     )
   );
 
@@ -63,9 +63,9 @@ CREATE POLICY "Club managers can delete club assets"
   USING (
     bucket_id = 'club-assets'
     AND auth.uid() IN (
-      SELECT user_id FROM club_members
+      SELECT player_id FROM club_members
       WHERE club_id::text = (storage.foldername(name))[1]
-        AND role IN ('owner', 'manager')
+        AND role IN ('captain', 'coach')
     )
   );
 
@@ -81,7 +81,7 @@ CREATE POLICY "Match participants can read score screenshots"
         WHERE m.id::text = (storage.foldername(name))[1]
       )
       OR auth.uid() IN (
-        SELECT user_id FROM profiles WHERE role IN ('admin', 'moderator')
+        SELECT id FROM profiles WHERE role IN ('organizer')
       )
     )
   );
@@ -143,7 +143,7 @@ CREATE POLICY "Admins can manage seasons"
   ON seasons FOR ALL
   USING (
     auth.uid() IN (
-      SELECT user_id FROM profiles WHERE role = 'admin'
+      SELECT id FROM profiles WHERE role = 'organizer'
     )
   );
 
