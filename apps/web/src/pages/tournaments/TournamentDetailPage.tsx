@@ -38,15 +38,57 @@ export function TournamentDetailPage() {
     enabled: !!id,
   })
 
-  const myRegistration = registrations?.find((r) => r.player_id === user?.id || r.club_id)
+  // Charger le club du capitaine si capitaine
+  const { data: captainClub } = useQuery({
+    queryKey: ['captain-club', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('clubs').select('id, name').eq('captain_id', user!.id).maybeSingle()
+      return data
+    },
+    enabled: !!user && profile?.role === 'captain',
+  })
+
+  // Charger le club du joueur si joueur
+  const { data: playerClub } = useQuery({
+    queryKey: ['player-club', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('club_members')
+        .select('club_id, club:clubs(name)')
+        .eq('player_id', user!.id)
+        .maybeSingle()
+      return data as any
+    },
+    enabled: !!user && profile?.role === 'player',
+  })
+
+  const isTeamTournament = tournament ? tournament.team_size > 1 : false
+
+  // Calculer l'inscription correspondante pour l'utilisateur
+  const myRegistration = registrations?.find((r) => {
+    if (isTeamTournament) {
+      const clubId = profile?.role === 'captain' ? captainClub?.id : playerClub?.club_id
+      return r.club_id === clubId
+    } else {
+      return r.player_id === user?.id
+    }
+  })
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('tournament_registrations').insert({
+      const payload: any = {
         tournament_id: id!,
-        player_id: user!.id,
         status: 'pending',
-      })
+      }
+      if (isTeamTournament) {
+        if (!captainClub) throw new Error('Vous devez avoir créé un club pour inscrire une équipe')
+        payload.club_id = captainClub.id
+      } else {
+        payload.player_id = user!.id
+      }
+
+      const { error } = await supabase.from('tournament_registrations').insert(payload)
       if (error) throw error
     },
     onSuccess: () => {
@@ -98,13 +140,42 @@ export function TournamentDetailPage() {
                 Générer le bracket
               </Btn>
             )}
-            {!isOrganizer && tournament.status === 'registration' && !myRegistration && (
-              <Btn onClick={() => registerMutation.mutate()} loading={registerMutation.isPending}>
-                S'inscrire
-              </Btn>
+
+            {/* Inscription Solo ou Équipe */}
+            {!isOrganizer && tournament.status === 'registration' && (
+              <>
+                {isTeamTournament ? (
+                  profile?.role === 'captain' ? (
+                    captainClub ? (
+                      !myRegistration && (
+                        <Btn onClick={() => registerMutation.mutate()} loading={registerMutation.isPending}>
+                          Inscrire mon club ({captainClub.name})
+                        </Btn>
+                      )
+                    ) : (
+                      <Btn disabled variant="secondary">Créer un club d'abord</Btn>
+                    )
+                  ) : (
+                    <span style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>
+                      ⚠️ Réservé aux capitaines d'équipe
+                    </span>
+                  )
+                ) : (
+                  !myRegistration && (
+                    <Btn onClick={() => registerMutation.mutate()} loading={registerMutation.isPending}>
+                      S'inscrire
+                    </Btn>
+                  )
+                )}
+              </>
             )}
+
             {myRegistration && (
-              <Badge label={`Inscrit · ${myRegistration.status}`} color="#1a7a4a" bg="#e6f7ef" />
+              <Badge
+                label={isTeamTournament ? `Équipe Inscrite · ${myRegistration.status}` : `Inscrit · ${myRegistration.status}`}
+                color="#1a7a4a"
+                bg="#e6f7ef"
+              />
             )}
           </div>
         </div>

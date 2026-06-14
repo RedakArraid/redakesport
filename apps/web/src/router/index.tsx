@@ -70,15 +70,8 @@ export const router = createBrowserRouter([
       // Matches
       { path: 'matches/:id', element: <MatchDetailPage /> },
 
-      // Club (captain + organizer)
-      {
-        path: 'club',
-        element: (
-          <RoleRoute allowedRoles={['captain', 'organizer']}>
-            <ClubPage />
-          </RoleRoute>
-        ),
-      },
+      // Club
+      { path: 'club', element: <ClubPage /> },
 
       // Scores & Matchmaking
       { path: 'scores', element: <ScoresPage /> },
