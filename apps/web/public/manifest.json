@@ -1,6 +1,6 @@
 {
-  "name": "Redak Esport",
-  "short_name": "Redak",
+  "name": "Redak eSport",
+  "short_name": "Redak eSport",
   "description": "Le système d'exploitation de l'esport",
   "start_url": "/",
   "display": "standalone",
@@ -12,7 +12,25 @@
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [

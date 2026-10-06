@@ -42,6 +42,76 @@ a {
   text-decoration: none;
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 9px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.brand__mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.brand__wordmark {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+.brand__red {
+  color: var(--accent);
+}
+.brand__e {
+  color: var(--ink);
+}
+.brand--sm {
+  gap: 7px;
+}
+.brand--sm .brand__mark {
+  width: 26px;
+  height: 26px;
+}
+.brand--sm .brand__wordmark {
+  font-size: 16px;
+}
+.brand--lg {
+  gap: 10px;
+}
+.brand--lg .brand__mark {
+  width: 40px;
+  height: 40px;
+}
+.brand--lg .brand__wordmark {
+  font-size: 24px;
+}
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+}
+.brand-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 5px;
+}
+
+@media (max-width: 600px) {
+  .public-nav .brand {
+    gap: 7px;
+  }
+  .public-nav .brand__mark {
+    width: 28px;
+    height: 28px;
+  }
+  .public-nav .brand__wordmark {
+    font-size: 18px;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signInWithEmail, signInWithDiscord } from '../../hooks/useAuth'
 import { useAuthConfig } from '../../hooks/useAuthConfig'
+import { Brand } from '../../components/ui/Brand'
 import { Btn } from '../../components/ui'
 
 const schema = z.object({
@@ -45,16 +46,8 @@ export function LoginPage() {
     <div style={pageStyle}>
       <div style={boxStyle}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 900,
-              fontSize: 24,
-              letterSpacing: -0.5,
-              marginBottom: 6,
-            }}
-          >
-            <span style={{ color: 'var(--accent)' }}>Redak</span> Esport
+          <div style={{ marginBottom: 12 }}>
+            <Brand size="lg" />
           </div>
           <div style={{ color: 'var(--muted)', fontSize: 14 }}>Connecte-toi à ton compte</div>
         </div>

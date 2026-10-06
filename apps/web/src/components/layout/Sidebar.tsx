@@ -1,8 +1,9 @@
 import { roleLabels } from '../../lib/labels'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from '../../hooks/useAuth'
 import { useAuthStore } from '../../stores/authStore'
 import { NotificationBell } from '../ui/NotificationBell'
+import { Brand } from '../ui/Brand'
 
 interface NavItem {
   label: string
@@ -52,16 +53,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     >
       {/* Logo */}
       <div style={{ padding: '4px 8px 16px', marginBottom: 8 }}>
-        <span
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 900,
-            fontSize: 18,
-            letterSpacing: -0.5,
-          }}
-        >
-          <span style={{ color: 'var(--accent)' }}>Redak</span> Esport
-        </span>
+        <Link to="/app/dashboard" className="brand-link" onClick={onNavigate}>
+          <Brand />
+        </Link>
       </div>
 
       {/* Nav */}
