@@ -1,0 +1,11 @@
+[Unit]
+Description=Redak Esport database and uploads backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/redakesport
+UMask=0077
+ExecStart=/usr/bin/node scripts/ops/backup.mjs --compose compose.production.yml --env-file .env.production --output var/backups/production
+TimeoutStartSec=30min

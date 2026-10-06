@@ -1,6 +1,6 @@
 # Redak Esport
 
-Application de compétition esport : joueurs, clubs, tournois, résultats, matchmaking et diffusion. **PostgreSQL 17 autonome + API Node.js 24/Fastify + React/TypeScript**. Aucun service Supabase, clé publique de base de données ou Edge Function n’est nécessaire.
+Application de compétition esport : joueurs, clubs, tournois, résultats, matchmaking et diffusion. **PostgreSQL 17 autonome + API Node.js 24/Fastify + React/TypeScript**. L'API assure l'authentification, le stockage des fichiers et toutes les opérations métier.
 
 ## Démarrer avec Docker
 
@@ -8,9 +8,9 @@ Application de compétition esport : joueurs, clubs, tournois, résultats, match
 docker compose up --build -d
 ```
 
-Ouvrir **http://localhost:5175**. PostgreSQL et les fichiers persistent dans deux volumes distincts. Les migrations s’appliquent au lancement de l’application. Créer un compte et choisir Joueur, Capitaine ou Organisateur. Le rôle Organisateur gère uniquement ses compétitions ; ce n’est pas un administrateur global des comptes.
+Ouvrir **http://localhost:5175**. PostgreSQL et les fichiers persistent dans deux volumes distincts. Les migrations s’appliquent au lancement de l’application. Créer un compte et choisir Joueur, Capitaine ou Organisateur. Le rôle Organisateur gère uniquement ses compétitions ; ce n’est pas un administrateur global des comptes. Les emails de récupération arrivent dans la boîte locale **http://localhost:8025** ; ils ne sont pas envoyés sur Internet.
 
-Les valeurs du Compose sont prévues pour le développement local, avec des ports liés à `127.0.0.1`. Pour une installation sur serveur, choisir un mot de passe PostgreSQL fort, définir `APP_ORIGIN` sur l’adresse HTTPS exacte et `NODE_ENV=production`, puis placer un reverse proxy HTTPS devant le port 3001. Les cookies de session sont alors `Secure` et `HttpOnly`. Ne pas exposer PostgreSQL sur Internet.
+Les valeurs du Compose sont prévues pour le développement local, avec des ports liés à `127.0.0.1`. La configuration serveur autonome `compose.production.yml` utilise Caddy pour HTTPS, des volumes séparés et une base privée. Copier `.env.production.example` vers `.env.production`, renseigner le domaine et les paramètres serveur, puis suivre le [guide de déploiement et d'exploitation](deploy/README.md). Les paramètres de production sont validés avant les migrations et le démarrage.
 
 ## Développement
 
@@ -19,7 +19,7 @@ Prérequis : Node.js 24, npm et Docker.
 ```sh
 npm ci
 cp .env.example .env
-docker compose up -d db
+docker compose up -d db mailpit
 npm run db:migrate
 npm run dev
 ```
@@ -28,7 +28,7 @@ npm run dev
 - API : http://127.0.0.1:3001/api/health
 - PostgreSQL : `localhost:5440`, base `redakesport`
 
-Le navigateur utilise `/api` sur la même origine ; Vite transmet ces requêtes à l’API. La configuration de connexion PostgreSQL reste exclusivement côté serveur. L’ancien fichier `apps/web/.env`, s’il existe déjà, n’est plus utilisé par le client applicatif.
+Le navigateur utilise `/api` sur la même origine ; Vite transmet ces requêtes à l’API. La configuration de connexion PostgreSQL reste exclusivement côté serveur. Un seul fichier `.env` à la racine configure le développement.
 
 ## Démonstration FC27
 
@@ -85,7 +85,7 @@ Les fonctions locales de compétition marchent sans identifiant tiers.
 
 - Discord OAuth : `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, callback `${APP_ORIGIN}/api/auth/discord/callback`. Un compte existant ayant le même email ne sera pas automatiquement lié à Discord.
 - Webhooks Discord : configuration par utilisateur dans Intégrations. L’envoi n’a lieu que sur action du bouton de test ; aucun bot de commandes n’est annoncé comme installé.
-- Récupération de mot de passe : `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, et éventuellement `SMTP_SECURE=true`. Un lien expire après 30 minutes et son utilisation révoque les sessions existantes.
+- Récupération de mot de passe : Mailpit capture les emails en local. En production, configurer `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, et éventuellement `SMTP_SECURE=true`. STARTTLS est requis par défaut en production (`SMTP_REQUIRE_TLS=true`). Un lien expire après 30 minutes et son utilisation révoque les sessions existantes. Sans service configuré, les écrans de connexion n'affichent pas de bouton Discord inutilisable et la récupération de compte indique sa disponibilité.
 - API Twitch : `TWITCH_CLIENT_ID`, `TWITCH_ACCESS_TOKEN` pour l’adaptateur de statut de chaîne.
 
 ## Validation
@@ -109,12 +109,12 @@ Les tests créent et utilisent exclusivement une base terminant par `_test` (par
 
 L’API n’expose ni SQL brut ni tables d’authentification. Les tables, champs, relations et actions accessibles sont contrôlés ; chaque requête applicative passe dans une transaction avec le rôle PostgreSQL de lecture ou d’utilisateur et l’identifiant de la session. Les procédures métier vérifient les autorisations et prennent les verrous nécessaires.
 
-Pour sauvegarder les données locales :
+Pour sauvegarder la base et les fichiers, puis vérifier une restauration isolée :
 
 ```sh
-docker compose exec -T db pg_dump -U redak -d redakesport > redakesport.sql
+npm run ops:backup
+npm run ops:verify -- --latest
+npm run ops:monitor
 ```
 
-Sauvegarder aussi le volume `uploads`. Restaurer dans une base vide, vérifier les sauvegardes régulièrement et conserver les fichiers et la base du même point de sauvegarde. `docker compose down` conserve les volumes ; `down -v` les détruit.
-
-La conversion du code ne copie pas automatiquement les données d’une ancienne installation Supabase. Un export de cette installation est nécessaire pour une reprise de données ; les anciens volumes et services externes ne sont pas supprimés par ce projet.
+Les sauvegardes privées sont enregistrées dans `var/backups`, avec manifestes et empreintes SHA-256. L'application est arrêtée brièvement pour figer les écritures, puis redémarrée ; PostgreSQL reste actif. La vérification restaure les données dans des ressources Docker temporaires et contrôle les fichiers et les nombres de lignes sans remplacer la base courante. Les [unités systemd fournies](deploy/README.md) prévoient une sauvegarde quotidienne, une restauration de contrôle hebdomadaire et une surveillance chaque minute. Elles doivent être installées sur le serveur choisi ; elles ne sont pas activées sur le poste de développement. `docker compose down` conserve les volumes ; `down -v` les détruit.

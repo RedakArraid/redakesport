@@ -1,7 +1,7 @@
 import pg from 'pg'
+import { config } from './config.mjs'
 export const pool = new pg.Pool({
-  connectionString:
-    process.env.DATABASE_URL || 'postgresql://redak:redak_local@127.0.0.1:5440/redakesport',
+  connectionString: config.databaseUrl,
   max: 12,
   connectionTimeoutMillis: 5000,
 })

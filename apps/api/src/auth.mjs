@@ -3,16 +3,17 @@ import { promisify } from 'node:util'
 import { z } from 'zod'
 import nodemailer from 'nodemailer'
 import { pool, transaction } from './db.mjs'
+import { config } from './config.mjs'
 const scrypt = promisify(scryptCallback)
 export const digest = (value) => createHash('sha256').update(value).digest('hex')
 const cookieOptions = {
   httpOnly: true,
   sameSite: 'lax',
   path: '/',
-  secure: process.env.NODE_ENV === 'production',
+  secure: config.production,
   maxAge: 60 * 60 * 24 * 14,
 }
-export const origin = process.env.APP_ORIGIN || 'http://localhost:5173'
+export const origin = config.origin
 export async function passwordHash(password) {
   const salt = randomBytes(16).toString('hex')
   const key = await scrypt(password, salt, 64)
@@ -138,7 +139,7 @@ export async function authRoutes(app) {
       const { email } = z
         .object({ email: z.email().transform((s) => s.toLowerCase()) })
         .parse(req.body)
-      if (!process.env.SMTP_HOST)
+      if (!config.passwordResetEnabled)
         throw Object.assign(
           new Error('La récupération par email doit être configurée par l’administrateur'),
           { statusCode: 503 },
@@ -150,16 +151,10 @@ export async function authRoutes(app) {
           "INSERT INTO auth.password_resets(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 minutes')",
           [digest(token), user.id],
         )
-        const mail = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: process.env.SMTP_USER
-            ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
-            : undefined,
-        })
+        const { from, ...transport } = config.smtp
+        const mail = nodemailer.createTransport(transport)
         await mail.sendMail({
-          from: process.env.SMTP_FROM || 'Redak Esport <no-reply@localhost>',
+          from,
           to: email,
           subject: 'Réinitialiser ton mot de passe Redak',
           text: `Choisis un nouveau mot de passe : ${origin}/reset-password?token=${token}\nCe lien expire dans 30 minutes.`,
@@ -193,7 +188,7 @@ export async function authRoutes(app) {
     return { data: { success: true }, error: null }
   })
   app.get('/api/auth/discord', async (_req, reply) => {
-    if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET)
+    if (!config.discordEnabled)
       throw Object.assign(new Error('Connexion Discord non configurée'), { statusCode: 503 })
     const state = randomBytes(24).toString('base64url')
     reply.setCookie('redak_oauth', state, { ...cookieOptions, maxAge: 600 })

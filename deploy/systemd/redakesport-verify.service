@@ -1,0 +1,11 @@
+[Unit]
+Description=Verify a Redak Esport backup by restoring it in isolation
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/redakesport
+UMask=0077
+ExecStart=/usr/bin/node scripts/ops/verify-backup.mjs --latest --output var/backups/production
+TimeoutStartSec=30min

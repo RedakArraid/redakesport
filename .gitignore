@@ -1,7 +1,8 @@
 node_modules/
 dist/
-.env
-.env.local
+.env*
+!.env.example
+!.env.production.example
 apps/web/dist/
 apps/web/node_modules/
 

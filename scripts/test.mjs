@@ -27,6 +27,10 @@ process.exitCode =
   (await run([
     '--test',
     '--test-concurrency=1',
+    'tests/config.test.mjs',
+    'tests/ops.test.mjs',
+    'tests/monitor.test.mjs',
+    'tests/score-visibility.test.mjs',
     'tests/brackets.test.mjs',
     'tests/swiss.test.mjs',
     'tests/api.test.mjs',

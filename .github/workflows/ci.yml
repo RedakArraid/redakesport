@@ -23,6 +23,14 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Validate Docker configurations
+        env:
+          APP_DOMAIN: esport.example.test
+          ACME_EMAIL: ops@example.test
+          POSTGRES_PASSWORD: ci_only_0123456789_abcdefghijklmnopqrst
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f compose.production.yml config --quiet
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

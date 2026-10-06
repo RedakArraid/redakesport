@@ -12,6 +12,7 @@ import { pool, transaction } from './db.mjs'
 import { dataQuery, callProcedure, loadSchema } from './data.mjs'
 import { authRoutes, origin, userForRequest } from './auth.mjs'
 import { buildBracket } from './brackets.ts'
+import { config } from './config.mjs'
 const uploads = resolve(
   process.env.UPLOAD_DIR || fileURLToPath(new URL('../../../var/uploads', import.meta.url)),
 )
@@ -19,7 +20,7 @@ export async function createApp({ logger = false } = {}) {
   const app = Fastify({
     logger,
     bodyLimit: 256 * 1024,
-    trustProxy: process.env.TRUST_PROXY === 'true',
+    trustProxy: config.trustProxy,
   })
   await app.register(cookie)
   await app.register(multipart, { limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 2 } })
@@ -65,8 +66,8 @@ export async function createApp({ logger = false } = {}) {
     return { status: 'ok', database: 'postgresql' }
   })
   app.get('/api/config', async () => ({
-    discordEnabled: !!(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET),
-    passwordResetEnabled: !!process.env.SMTP_HOST,
+    discordEnabled: config.discordEnabled,
+    passwordResetEnabled: config.passwordResetEnabled,
   }))
   await authRoutes(app)
   app.post('/api/data', async (req) => dataQuery(req.user?.id, req.body))
@@ -163,8 +164,7 @@ export async function createApp({ logger = false } = {}) {
     if (!req.user) throw Object.assign(new Error('Connexion requise'), { statusCode: 401 })
     const name = req.body?.channel_name
     if (!/^[a-zA-Z0-9_]{1,25}$/.test(name)) throw new Error('Chaîne invalide')
-    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN)
-      return { is_live: false, error: 'Twitch non configuré' }
+    if (!config.twitchEnabled) return { is_live: false, error: 'Twitch non configuré' }
     const response = await fetch(`https://api.twitch.tv/helix/streams?user_login=${name}`, {
       headers: {
         'Client-ID': process.env.TWITCH_CLIENT_ID,
@@ -280,8 +280,8 @@ export async function createApp({ logger = false } = {}) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const app = await createApp({ logger: true })
   await app.listen({
-    port: Number(process.env.PORT || 3001),
-    host: process.env.HOST || '127.0.0.1',
+    port: config.port,
+    host: config.host,
   })
   const close = async () => {
     await app.close()

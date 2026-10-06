@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { request } from '../../lib/api'
 import { Btn, Card } from '../../components/ui'
+import { useAuthConfig } from '../../hooks/useAuthConfig'
 export function PasswordPage() {
   const [params] = useSearchParams(),
     token = params.get('token'),
@@ -10,6 +11,7 @@ export function PasswordPage() {
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false),
     [done, setDone] = useState(false)
+  const authConfig = useAuthConfig(!token)
   return (
     <div style={{ maxWidth: 460, width: '100%', margin: '60px auto', padding: 16 }}>
       <Card>
@@ -18,6 +20,26 @@ export function PasswordPage() {
           <>
             <p role="status">{message}</p>
             <Link to="/login">Se connecter</Link>
+          </>
+        ) : !token && authConfig.isPending ? (
+          <p role="status">Chargement des options de récupération…</p>
+        ) : !token && authConfig.isError ? (
+          <>
+            <p role="alert">
+              Le service de récupération est temporairement inaccessible. Réessaie dans quelques
+              instants.
+            </p>
+            <Btn onClick={() => void authConfig.refetch()}>Réessayer</Btn>
+            <p>
+              <Link to="/login">Revenir à la connexion</Link>
+            </p>
+          </>
+        ) : !token && !authConfig.data?.passwordResetEnabled ? (
+          <>
+            <p role="status">
+              La récupération par email n’est pas disponible. Contacte l’assistance du site.
+            </p>
+            <Link to="/login">Revenir à la connexion</Link>
           </>
         ) : (
           <form

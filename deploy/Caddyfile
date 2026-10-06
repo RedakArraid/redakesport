@@ -1,0 +1,13 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy app:3001 {
+		health_uri /api/health
+		health_interval 30s
+		health_timeout 5s
+	}
+}

@@ -1,4 +1,14 @@
 services:
+  mailpit:
+    image: axllent/mailpit@sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365
+    environment:
+      MP_DISABLE_VERSION_CHECK: 'true'
+      MP_SMTP_DISABLE_RDNS: 'true'
+      MP_MAX_MESSAGES: 200
+    ports:
+      - '127.0.0.1:8025:8025'
+      - '127.0.0.1:1025:1025'
+    restart: unless-stopped
   db:
     image: postgres:17-alpine
     environment:
@@ -6,11 +16,11 @@ services:
       POSTGRES_USER: redak
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-redak_local}
     ports:
-      - "127.0.0.1:5440:5432"
+      - '127.0.0.1:5440:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U redak -d redakesport"]
+      test: ['CMD-SHELL', 'pg_isready -U redak -d redakesport']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,8 +29,8 @@ services:
     build: .
     environment:
       DATABASE_URL: postgres://redak:${POSTGRES_PASSWORD:-redak_local}@db:5432/redakesport
-      NODE_ENV: ${NODE_ENV:-development}
-      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:5175}
+      NODE_ENV: development
+      APP_ORIGIN: http://localhost:5175
       HOST: 0.0.0.0
       PORT: 3001
       UPLOAD_DIR: /app/var/uploads
@@ -28,19 +38,19 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
       TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID:-}
       TWITCH_ACCESS_TOKEN: ${TWITCH_ACCESS_TOKEN:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_SECURE: 'false'
+      SMTP_FROM: 'Redak Esport <no-reply@example.test>'
     ports:
-      - "127.0.0.1:5175:3001"
+      - '127.0.0.1:5175:3001'
     volumes:
       - uploads:/app/var/uploads
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     restart: unless-stopped
 volumes:
   postgres_data:

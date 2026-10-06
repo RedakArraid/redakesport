@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Redak Esport availability and backup freshness
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/redakesport
+UMask=0077
+ExecStart=/usr/bin/node --env-file=.env.production scripts/ops/monitor.mjs --backup-dir var/backups/production --state var/monitor-production.json
+TimeoutStartSec=45s
