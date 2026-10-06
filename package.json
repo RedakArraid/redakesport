@@ -5,8 +5,20 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/web",
+    "dev": "node scripts/dev.mjs",
     "build": "npm run build --workspace=apps/web",
-    "preview": "npm run preview --workspace=apps/web"
+    "preview": "npm run preview --workspace=apps/web",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "db:migrate": "npm run migrate --workspace=apps/api",
+    "db:seed:demo": "node --env-file-if-exists=.env apps/api/src/seed-demo.mjs",
+    "lint": "npm run lint --workspace=apps/web",
+    "test": "node scripts/test.mjs",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm run build && npm test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "prettier": "^3.9.9"
   }
 }

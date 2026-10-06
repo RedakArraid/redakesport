@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
 import { Btn, Card } from '../../components/ui'
 import type { Role } from '../../types/database'
@@ -24,12 +24,8 @@ export function OnboardingPage() {
     setLoading(true)
     setError(null)
 
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .update({ role: selectedRole, country: country || null })
-      .eq('id', user.id)
-      .select()
-      .single()
+    const { data, error: err } = await db
+      .rpc('complete_onboarding', { p_role: selectedRole, p_country: country || null })
 
     if (err) { setError(err.message); setLoading(false); return }
     setProfile(data)
@@ -55,7 +51,8 @@ export function OnboardingPage() {
                 display: 'flex', alignItems: 'center', gap: 16,
                 transition: 'border 0.15s',
               }}
-              className=""
+              role="radio" aria-checked={selectedRole === r.value} tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedRole(r.value) } }}
               onClick={() => setSelectedRole(r.value)}>
               <span style={{ fontSize: 28 }}>{r.icon}</span>
               <div style={{ flex: 1 }}>

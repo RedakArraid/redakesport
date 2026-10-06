@@ -1,5 +1,6 @@
 export type Role = 'player' | 'captain' | 'organizer'
-export type TournamentFormat = 'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss' | 'hybrid'
+export type TournamentFormat =
+  'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss' | 'hybrid'
 export type TournamentStatus = 'draft' | 'registration' | 'ongoing' | 'completed' | 'cancelled'
 export type MatchStatus = 'pending' | 'live' | 'completed' | 'disputed' | 'forfeit'
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected'
@@ -17,6 +18,7 @@ export interface Profile {
   display_name: string | null
   avatar_url: string | null
   role: Role
+  onboarding_completed: boolean
   elo_rating: number
   country: string | null
   bio: string | null
@@ -76,9 +78,14 @@ export interface Tournament {
   game_id: string | null
   format: TournamentFormat
   status: TournamentStatus
+  best_of: number
   max_teams: number | null
   team_size: number
-  prize_pool: { total: number; currency: string; distribution: { place: number; amount: number }[] } | null
+  prize_pool: {
+    total: number
+    currency: string
+    distribution: { place: number; amount: number }[]
+  } | null
   rules: string | null
   start_date: string | null
   end_date: string | null
@@ -95,7 +102,7 @@ export interface TournamentRegistration {
   tournament_id: string
   club_id: string | null
   player_id: string | null
-  status: ApplicationStatus
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn'
   seed: number | null
   registered_at: string
 }
@@ -113,7 +120,11 @@ export interface Match {
   group_id: string | null
   round: number | null
   match_number: number | null
-  bracket_position: { side: 'winners' | 'losers'; round: number; position: number } | null
+  bracket_position: {
+    side: 'winners' | 'losers' | 'grand_final' | 'reset' | 'group' | 'swiss'
+    round: number
+    position: number
+  } | null
   team1_id: string | null
   team2_id: string | null
   team1_type: 'club' | 'player'
@@ -127,6 +138,10 @@ export interface Match {
   started_at: string | null
   completed_at: string | null
   best_of: number
+  result_kind: 'played' | 'forfeit'
+  forfeit_reason: string | null
+  next_match_slot: number | null
+  loser_match_slot: number | null
   next_match_id: string | null
   loser_match_id: string | null
   map_pool: { map: string; score1: number; score2: number }[] | null
@@ -179,23 +194,186 @@ export interface EloHistory {
   recorded_at: string
 }
 
-// Supabase Database type shape for the client
+export interface GroupMember {
+  group_id: string
+  club_id: string | null
+  player_id: string | null
+}
+export interface Standing {
+  buchholz: number
+  sonneborn_berger: number | string
+  tournament_id: string
+  group_id: string | null
+  team_id: string
+  team_type: string
+  position: number | null
+  wins: number
+  losses: number
+  draws: number
+  points: number
+  map_wins: number
+  map_losses: number
+  updated_at: string
+}
+export interface QueueEntry {
+  id: string
+  player_id: string
+  game_id: string | null
+  elo_rating: number
+  region: string | null
+  queue_type: QueueType
+  party_id: string | null
+  status: 'searching' | 'found' | 'matched'
+  joined_at: string
+}
+export interface Lobby {
+  id: string
+  game_id: string | null
+  match_id: string | null
+  status: 'forming' | 'ready' | 'cancelled'
+  team1_player_ids: string[]
+  team2_player_ids: string[]
+  ready_player_ids: string[]
+  server_info: Record<string, unknown> | null
+  created_at: string
+}
+export interface BroadcastSession {
+  id: string
+  match_id: string | null
+  tournament_id: string | null
+  organizer_id: string
+  title: string
+  platform: StreamPlatform
+  stream_key: string | null
+  rtmp_url: string | null
+  overlay_config: Record<string, unknown> | null
+  status: BroadcastStatus
+  started_at: string | null
+  ended_at: string | null
+  vod_url: string | null
+  viewer_count: number
+  created_at: string
+}
+export interface DiscordIntegration {
+  id: string
+  user_id: string
+  club_id: string | null
+  tournament_id: string | null
+  guild_id: string
+  channel_id: string | null
+  webhook_url: string | null
+  settings: Record<string, unknown> | null
+  created_at: string
+}
+export interface MediaUpload {
+  id: string
+  uploader_id: string
+  match_id: string | null
+  type: MediaType
+  storage_path: string
+  public_url: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+type Relationship<N extends string, C extends string, T extends string> = {
+  foreignKeyName: N
+  columns: [C]
+  isOneToOne: false
+  referencedRelation: T
+  referencedColumns: ['id']
+}
+type Table<
+  T,
+  R extends {
+    foreignKeyName: string
+    columns: string[]
+    isOneToOne: boolean
+    referencedRelation: string
+    referencedColumns: string[]
+  }[] = [],
+> = { Row: { [K in keyof T]: T[K] }; Insert: Partial<T>; Update: Partial<T>; Relationships: R }
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> }
-      games: { Row: Game; Insert: Partial<Game>; Update: Partial<Game> }
-      clubs: { Row: Club; Insert: Partial<Club>; Update: Partial<Club> }
-      club_members: { Row: ClubMember; Insert: Partial<ClubMember>; Update: Partial<ClubMember> }
-      club_applications: { Row: ClubApplication; Insert: Partial<ClubApplication>; Update: Partial<ClubApplication> }
-      tournaments: { Row: Tournament; Insert: Partial<Tournament>; Update: Partial<Tournament> }
-      tournament_registrations: { Row: TournamentRegistration; Insert: Partial<TournamentRegistration>; Update: Partial<TournamentRegistration> }
-      groups: { Row: Group; Insert: Partial<Group>; Update: Partial<Group> }
-      matches: { Row: Match; Insert: Partial<Match>; Update: Partial<Match> }
-      match_events: { Row: MatchEvent; Insert: Partial<MatchEvent>; Update: Partial<MatchEvent> }
-      score_submissions: { Row: ScoreSubmission; Insert: Partial<ScoreSubmission>; Update: Partial<ScoreSubmission> }
-      notifications: { Row: Notification; Insert: Partial<Notification>; Update: Partial<Notification> }
-      elo_history: { Row: EloHistory; Insert: Partial<EloHistory>; Update: Partial<EloHistory> }
+      profiles: Table<Profile>
+      games: Table<Game>
+      clubs: Table<
+        Club,
+        [
+          Relationship<'clubs_game_id_fkey', 'game_id', 'games'>,
+          Relationship<'clubs_captain_id_fkey', 'captain_id', 'profiles'>,
+        ]
+      >
+      club_members: Table<
+        ClubMember,
+        [
+          Relationship<'club_members_club_id_fkey', 'club_id', 'clubs'>,
+          Relationship<'club_members_player_id_fkey', 'player_id', 'profiles'>,
+        ]
+      >
+      club_applications: Table<
+        ClubApplication,
+        [Relationship<'club_applications_player_id_fkey', 'player_id', 'profiles'>]
+      >
+      tournaments: Table<Tournament, [Relationship<'tournaments_game_id_fkey', 'game_id', 'games'>]>
+      tournament_registrations: Table<
+        TournamentRegistration,
+        [
+          Relationship<'tournament_registrations_club_id_fkey', 'club_id', 'clubs'>,
+          Relationship<'tournament_registrations_player_id_fkey', 'player_id', 'profiles'>,
+        ]
+      >
+      groups: Table<Group>
+      group_members: Table<GroupMember>
+      matches: Table<
+        Match,
+        [Relationship<'matches_tournament_id_fkey', 'tournament_id', 'tournaments'>]
+      >
+      match_events: Table<MatchEvent>
+      score_submissions: Table<
+        ScoreSubmission,
+        [Relationship<'score_submissions_match_id_fkey', 'match_id', 'matches'>]
+      >
+      standings: Table<Standing>
+      matchmaking_queue: Table<QueueEntry>
+      lobbies: Table<Lobby>
+      broadcast_sessions: Table<BroadcastSession>
+      discord_integrations: Table<DiscordIntegration>
+      notifications: Table<Notification>
+      elo_history: Table<EloHistory>
+      media_uploads: Table<MediaUpload>
+    }
+    Views: Record<never, never>
+    Functions: {
+      complete_onboarding: { Args: { p_role: Role; p_country: string | null }; Returns: Profile }
+      create_club: {
+        Args: { p_name: string; p_region: string | null; p_description: string | null }
+        Returns: Club
+      }
+      review_application: { Args: { p_id: string; p_accept: boolean }; Returns: undefined }
+      register_tournament: {
+        Args: { p_tournament_id: string; p_club_id?: string | null }
+        Returns: string
+      }
+      review_registration: { Args: { p_id: string; p_approve: boolean }; Returns: undefined }
+      withdraw_registration: { Args: { p_id: string }; Returns: undefined }
+      submit_score: {
+        Args: { p_match_id: string; p_score1: number; p_score2: number; p_screenshots?: string[] }
+        Returns: { status: SubmissionStatus }
+      }
+      forfeit_match: {
+        Args: { p_match_id: string; p_loser_id: string; p_reason: string }
+        Returns: undefined
+      }
+      resolve_score: {
+        Args: { p_match_id: string; p_score1: number; p_score2: number }
+        Returns: undefined
+      }
+      join_queue: { Args: { p_game_id: string }; Returns: undefined }
+      matchmaking_tick: { Args: Record<never, never>; Returns: number }
+      lobby_ready: { Args: { p_id: string }; Returns: string | null }
+      cancel_lobby: { Args: { p_id: string }; Returns: undefined }
     }
   }
 }

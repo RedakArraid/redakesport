@@ -1,67 +1,90 @@
 import { useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import type { Session } from '../lib/api'
+import { db } from '../lib/api'
+import { queryClient } from '../lib/queryClient'
 import { useAuthStore } from '../stores/authStore'
-import type { Profile } from '../types/database'
+
+export async function refreshProfile() {
+  const id = useAuthStore.getState().user?.id
+  if (!id) return
+  const { data, error } = await db.from('profiles').select('*').eq('id', id).single()
+  if (!error && useAuthStore.getState().user?.id === id) useAuthStore.getState().setProfile(data)
+}
 
 export function useAuthInit() {
-  const { setSession, setProfile, setLoading } = useAuthStore()
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setLoading(false)
+    let active = true
+    let revision = 0
+    let lastUser: string | null | undefined
+    const sync = async (session: Session | null) => {
+      const token = ++revision
+      const state = useAuthStore.getState()
+      if (lastUser !== session?.user.id) {
+        queryClient.clear()
+        state.setProfile(null)
       }
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
-        setLoading(false)
+      lastUser = session?.user.id
+      state.setSession(session)
+      state.setLoading(true)
+      try {
+        if (!session) {
+          state.setProfile(null)
+          return
+        }
+        const { data, error } = await db
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+        if (!active || token !== revision) return
+        if (error) {
+          state.setProfile(null)
+          return
+        }
+        state.setProfile(data)
+      } finally {
+        if (active && token === revision) state.setLoading(false)
       }
+    }
+    // Wait for the auth event to finish before loading the profile.
+    const {
+      data: { subscription },
+    } = db.auth.onAuthStateChange((_event, session) => {
+      queueMicrotask(() => {
+        if (active) void sync(session)
+      })
     })
-
-    return () => subscription.unsubscribe()
+    const refresh = () => {
+      if (!document.hidden) void refreshProfile()
+    }
+    const timer = window.setInterval(refresh, 15000)
+    window.addEventListener('focus', refresh)
+    return () => {
+      active = false
+      subscription.unsubscribe()
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+    }
   }, [])
-
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data as Profile | null)
-    setLoading(false)
-  }
 }
-
-export async function signInWithEmail(email: string, password: string) {
-  return supabase.auth.signInWithPassword({ email, password })
+export function signInWithEmail(email: string, password: string) {
+  return db.auth.signInWithPassword({ email, password })
 }
-
-export async function signUpWithEmail(email: string, password: string, username: string) {
-  return supabase.auth.signUp({
+export function signUpWithEmail(email: string, password: string, username: string) {
+  return db.auth.signUp({
     email,
     password,
-    options: { data: { username } },
+    options: { data: { username }, emailRedirectTo: `${window.location.origin}/auth/callback` },
   })
 }
-
-export async function signInWithDiscord() {
-  return supabase.auth.signInWithOAuth({
-    provider: 'discord',
-    options: {
-      scopes: 'identify email',
-      redirectTo: `${window.location.origin}/auth/callback`,
-    },
-  })
+export function signInWithDiscord() {
+  return db.auth.signInWithOAuth()
 }
-
 export async function signOut() {
-  return supabase.auth.signOut()
+  const result = await db.auth.signOut()
+  if (!result.error) {
+    queryClient.clear()
+    useAuthStore.getState().reset()
+  }
+  return result
 }

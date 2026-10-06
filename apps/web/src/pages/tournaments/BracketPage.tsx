@@ -1,218 +1,241 @@
-import React from 'react'
-import { useParams } from 'react-router-dom'
+import { BracketTree } from '../../components/ui/BracketTree'
+import { useParticipantNames } from '../../hooks/useParticipants'
+import { bracketMatchStatusLabel, formatLabels, tournamentStatusLabels } from '../../lib/labels'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
-import { Spinner, Badge } from '../../components/ui'
+import { db } from '../../lib/api'
+import { Spinner, Card, Badge, Btn } from '../../components/ui'
 import type { Match } from '../../types/database'
-import { useRealtimeChannel } from '../../hooks/useRealtime'
-import { useQueryClient } from '@tanstack/react-query'
 
 export function BracketPage() {
-  const { id: tournamentId } = useParams<{ id: string }>()
-  const qc = useQueryClient()
-
-  const { data: matches, isLoading } = useQuery({
-    queryKey: ['bracket', tournamentId],
+  const { id } = useParams(),
+    base = useLocation().pathname.startsWith('/app') ? '/app' : ''
+  const tournamentQuery = useQuery({
+    queryKey: ['bracket-tournament', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('tournament_id', tournamentId!)
-        .order('round', { ascending: true })
-        .order('match_number', { ascending: true })
+      const { data, error } = await db
+        .from('tournaments')
+        .select('name,status,format,best_of,game:games(name)')
+        .eq('id', id!)
+        .single()
       if (error) throw error
-      return data as Match[]
+      return data
     },
-    enabled: !!tournamentId,
+    refetchInterval: 5000,
   })
-
-  // Realtime: bracket updates live
-  useRealtimeChannel(
-    `bracket:${tournamentId}`,
-    {
-      table: 'matches',
-      filter: `tournament_id=eq.${tournamentId}`,
-      onUpdate: () => qc.invalidateQueries({ queryKey: ['bracket', tournamentId] }),
+  const tournament = tournamentQuery.data
+  const matchesQuery = useQuery({
+    queryKey: ['bracket', id],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('matches')
+        .select('*, group:groups(name)')
+        .eq('tournament_id', id!)
+        .order('round')
+        .order('match_number')
+        .all()
+      if (error) throw error
+      return data
     },
-    [tournamentId],
-  )
-
-  if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={32} /></div>
-
-  if (!matches || matches.length === 0) {
+    refetchInterval: (query) => ((query.state.data?.length ?? 0) > 1000 ? 30000 : 5000),
+  })
+  const matches = matchesQuery.data ?? []
+  const namesQuery = useParticipantNames(matches.flatMap((m) => [m.team1_id, m.team2_id]))
+  const names = namesQuery.data ?? {}
+  if (tournamentQuery.isLoading || matchesQuery.isLoading) return <Spinner />
+  if (tournamentQuery.error || matchesQuery.error || !tournament)
     return (
-      <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--muted)' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Bracket pas encore généré</div>
-        <div style={{ fontSize: 14 }}>L'organisateur générera le bracket après la clôture des inscriptions.</div>
-      </div>
+      <Card>
+        <h1>Tableau indisponible</h1>
+        <p>
+          {tournamentQuery.error || !tournament
+            ? 'Ce tournoi est privé, n’existe plus ou ne peut pas être chargé.'
+            : 'Les rencontres n’ont pas pu être chargées. Réessaie dans quelques instants.'}
+        </p>
+        <div className="action-row">
+          <Btn
+            onClick={() => {
+              void tournamentQuery.refetch()
+              void matchesQuery.refetch()
+            }}
+          >
+            Réessayer
+          </Btn>
+          <Link to={`${base}/tournaments`}>Voir les tournois</Link>
+        </div>
+      </Card>
     )
-  }
-
-  // Group matches by round
-  const rounds = groupByRound(matches)
-  const roundNums = Object.keys(rounds).map(Number).sort((a, b) => a - b)
-  const totalRounds = roundNums.length
-
+  const cancelled = tournament.status === 'cancelled'
+  const tree = matches.filter(
+    (m) =>
+      ['winners', 'losers', 'grand_final', 'reset'].includes(
+        m.bracket_position?.side ?? 'winners',
+      ) && !(m.bracket_position?.side === 'reset' && m.status === 'completed' && !m.team1_id),
+  )
+  const roundMatches = matches.filter((m) =>
+    ['group', 'swiss'].includes(m.bracket_position?.side ?? ''),
+  )
+  const sections = [...new Set(roundMatches.map((m) => m.group_id ?? 'swiss'))]
+    .map((key) => {
+      const list = roundMatches.filter((m) => (m.group_id ?? 'swiss') === key)
+      return {
+        key,
+        name: list[0]?.group?.name ?? (key === 'swiss' ? 'Rondes suisses' : 'Poule'),
+        list,
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+  const fromGroups = roundMatches.some((m) => m.bracket_position?.side === 'group')
   return (
     <div className="screen-enter">
-      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: -0.5 }}>Bracket</div>
-        <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--muted)', alignItems: 'center' }}>
-          <Dot color="var(--blue)" /> En cours
-          <Dot color="#1a7a4a" /> Terminé
-          <Dot color="var(--border)" /> À venir
-        </div>
-      </div>
-
-      <div style={{ overflowX: 'auto', paddingBottom: 16 }}>
-        <div style={{
-          display: 'flex', gap: 0, alignItems: 'stretch',
-          minWidth: roundNums.length * 240,
-        }}>
-          {roundNums.map((round, roundIdx) => {
-            const roundMatches = rounds[round]
-            const label = round === totalRounds ? 'Finale' : round === totalRounds - 1 ? 'Demi-finale' : `Round ${round}`
-
-            return (
-              <div key={round} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {/* Round header */}
-                <div style={{
-                  textAlign: 'center', padding: '8px 12px',
-                  fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
-                  letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)',
-                  borderBottom: '1px solid var(--border)', marginBottom: 8,
-                }}>
-                  {label}
-                </div>
-
-                {/* Matches column */}
-                <div style={{
-                  flex: 1, display: 'flex', flexDirection: 'column',
-                  justifyContent: 'space-around',
-                  padding: '8px 8px',
-                  gap: 8,
-                }}>
-                  {roundMatches.map((match) => (
-                    <MatchCard key={match.id} match={match} />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function MatchCard({ match }: { match: Match }) {
-  const isLive = match.status === 'live'
-  const isDone = match.status === 'completed'
-  const isPending = match.status === 'pending'
-
-  const borderColor = isLive ? 'var(--blue)' : isDone ? '#1a7a4a' : 'var(--border)'
-  const bgColor = isLive ? 'rgba(37,71,255,0.04)' : 'var(--card)'
-
-  return (
-    <div style={{
-      border: `1.5px solid ${borderColor}`,
-      borderRadius: 10, background: bgColor,
-      overflow: 'hidden', minWidth: 200,
-      position: 'relative',
-    }}>
-      {isLive && (
-        <div style={{
-          position: 'absolute', top: 6, right: 6,
-          background: 'var(--blue)', color: '#fff',
-          fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
-          fontFamily: 'var(--font-mono)', letterSpacing: 0.5,
-          animation: 'pulse 1.5s infinite',
-        }}>LIVE</div>
-      )}
-      <TeamRow
-        teamId={match.team1_id}
-        score={match.score_team1}
-        isWinner={match.winner_id === match.team1_id}
-        isDone={isDone}
-        borderBottom
-      />
-      <TeamRow
-        teamId={match.team2_id}
-        score={match.score_team2}
-        isWinner={match.winner_id === match.team2_id}
-        isDone={isDone}
-      />
-      {match.best_of > 1 && (
-        <div style={{
-          fontSize: 9, color: 'var(--muted)', textAlign: 'center',
-          padding: '2px 0 4px', fontFamily: 'var(--font-mono)',
-        }}>
-          BO{match.best_of}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TeamRow({ teamId, score, isWinner, isDone, borderBottom }: {
-  teamId: string | null
-  score: number
-  isWinner: boolean
-  isDone: boolean
-  borderBottom?: boolean
-}) {
-  const { data: name } = useQuery({
-    queryKey: ['team-name', teamId],
-    queryFn: async () => {
-      if (!teamId) return null
-      const { data } = await supabase.from('clubs').select('name').eq('id', teamId).maybeSingle()
-      if (data) return data.name
-      const { data: p } = await supabase.from('profiles').select('username').eq('id', teamId).maybeSingle()
-      return p?.username ?? teamId.slice(0, 8)
-    },
-    enabled: !!teamId,
-    staleTime: Infinity,
-  })
-
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '8px 10px',
-      borderBottom: borderBottom ? '1px solid var(--border)' : undefined,
-      background: isWinner && isDone ? 'rgba(26,122,74,0.06)' : undefined,
-    }}>
-      <span style={{
-        fontFamily: 'var(--font-display)', fontWeight: isWinner ? 800 : 600,
-        fontSize: 12, color: teamId ? 'var(--ink)' : 'var(--muted)',
-        flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        maxWidth: 120,
-      }}>
-        {teamId ? (name ?? '...') : 'TBD'}
-      </span>
-      {isDone && (
-        <span style={{
-          fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13,
-          color: isWinner ? '#1a7a4a' : 'var(--muted)', marginLeft: 8,
-        }}>
-          {score}
+      <Link to={`${base}/tournaments/${id}`}>← Tournoi</Link>
+      <h1>Tableau des rencontres</h1>
+      <p className="bracket-tournament-name">{tournament.name}</p>
+      <div className="action-row" style={{ marginBottom: 20 }}>
+        <Badge label={tournamentStatusLabels[tournament.status]} />
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          {tournament.game?.name ? `${tournament.game.name} · ` : ''}
+          {formatLabels[tournament.format]} · BO{tournament.best_of}
         </span>
+      </div>
+      {namesQuery.error && <p role="alert">Les noms des participants n’ont pas pu être chargés.</p>}
+      {cancelled && (
+        <Card style={{ marginBottom: 16 }}>
+          Tournoi annulé : les résultats sont figés et les rencontres restantes ne seront pas
+          jouées.
+        </Card>
       )}
-      {isWinner && isDone && <span style={{ marginLeft: 4, fontSize: 10 }}>✓</span>}
+      {tournament.status === 'completed' && (
+        <p>
+          Tournoi terminé.{' '}
+          <Link to={`${base}/tournaments/${id}/standings`}>Voir le classement final →</Link>
+        </p>
+      )}
+      {tree.length > 0 && (
+        <>
+          {fromGroups && <h2>Phase finale</h2>}
+          <BracketTree
+            matches={tree}
+            names={names}
+            base={base}
+            fromGroups={fromGroups}
+            cancelled={cancelled}
+          />
+        </>
+      )}
+      {!matches.length && (
+        <Card>
+          {cancelled
+            ? 'Ce tournoi a été annulé avant la création des rencontres.'
+            : tournament.status === 'draft'
+              ? 'Tournoi en préparation. Les rencontres seront générées après l’ouverture et la validation des inscriptions.'
+              : tournament.status === 'registration'
+                ? 'Les inscriptions sont ouvertes. Le tableau apparaîtra après la validation des participants et le lancement du tournoi.'
+                : 'Aucune rencontre disponible pour ce tournoi.'}
+        </Card>
+      )}
+      {fromGroups && tree.length > 0 && <h2>Phase de poules</h2>}
+      {sections.map(({ key, name, list }) => {
+        const rounds = [...new Set(list.map((m) => m.round || 1))].sort((a, b) => a - b)
+        return (
+          <section key={key} aria-label={name} style={{ marginBottom: 28 }}>
+            {fromGroups && tree.length > 0 ? <h3>{name}</h3> : <h2>{name}</h2>}
+            {rounds.length > 1 && (
+              <p className="table-hint">
+                Fais défiler horizontalement pour consulter toutes les rondes.
+              </p>
+            )}
+            <div
+              className="rounds-viewport"
+              role="region"
+              aria-label={`Rencontres — ${name}`}
+              tabIndex={0}
+            >
+              <div className="rounds-columns">
+                {rounds.map((round) => (
+                  <div key={round} className="round-column">
+                    <h3>Ronde {round}</h3>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                      {list
+                        .filter((m) => (m.round || 1) === round)
+                        .map((m) => (
+                          <Link
+                            key={m.id}
+                            data-round-match={m.id}
+                            data-group-id={m.group_id ?? undefined}
+                            to={`${base}/matches/${m.id}`}
+                          >
+                            <Card
+                              className="round-match-card"
+                              style={{
+                                padding: 14,
+                                borderColor: m.status === 'completed' ? '#86b99e' : 'var(--border)',
+                              }}
+                            >
+                              <div className="bracket-match-heading">
+                                <span>
+                                  Match {m.match_number} · BO{m.best_of}
+                                </span>
+                                <span>{bracketMatchStatusLabel(m, cancelled)}</span>
+                              </div>
+                              {[m.team1_id, m.team2_id].map((team, index) => (
+                                <div
+                                  key={index}
+                                  className={`bracket-team ${team && m.winner_id === team ? 'is-winner' : ''}`}
+                                >
+                                  <span title={team ? names[team] : undefined}>
+                                    {team
+                                      ? names[team] || 'Participant'
+                                      : m.status === 'completed'
+                                        ? 'Exempt'
+                                        : 'À déterminer'}
+                                  </span>
+                                  <strong>
+                                    {(!cancelled || m.status === 'completed') &&
+                                    ['completed', 'live'].includes(m.status) &&
+                                    m.team1_id &&
+                                    m.team2_id
+                                      ? index === 0
+                                        ? m.score_team1
+                                        : m.score_team2
+                                      : '–'}
+                                  </strong>
+                                </div>
+                              ))}
+                              <div
+                                className="bracket-match-footer"
+                                title={m.forfeit_reason ?? undefined}
+                              >
+                                {roundMatchFooter(m, cancelled)}
+                              </div>
+                            </Card>
+                          </Link>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
 
-function Dot({ color }: { color: string }) {
-  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block' }} />
-}
-
-function groupByRound(matches: Match[]): Record<number, Match[]> {
-  const groups: Record<number, Match[]> = {}
-  for (const m of matches) {
-    const r = m.round ?? 1
-    if (!groups[r]) groups[r] = []
-    groups[r].push(m)
-  }
-  return groups
+function roundMatchFooter(match: Match, cancelled: boolean) {
+  if (cancelled && match.status !== 'completed') return 'Tournoi annulé'
+  if (match.result_kind === 'forfeit') return `Forfait : ${match.forfeit_reason}`
+  if (match.status === 'completed' && (!match.team1_id || !match.team2_id))
+    return match.winner_id
+      ? match.bracket_position?.side === 'swiss'
+        ? 'Exemption de cette ronde'
+        : 'Qualification automatique'
+      : 'Rencontre non jouée'
+  if (match.scheduled_at)
+    return new Date(match.scheduled_at).toLocaleString('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    })
+  return match.status === 'completed' ? 'Résultat confirmé' : 'Horaire à définir'
 }

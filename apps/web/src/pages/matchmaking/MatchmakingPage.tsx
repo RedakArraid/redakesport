@@ -1,20 +1,24 @@
+import { Link } from 'react-router-dom'
 import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useRealtimeChannel } from '../../hooks/useRealtime'
-import { Card, Badge, Btn, SectionTitle } from '../../components/ui'
+import { Card, Btn, SectionTitle } from '../../components/ui'
 
 export function MatchmakingPage() {
   const { user, profile } = useAuthStore()
+  const [gameId, setGameId] = useState('')
+  const { data: games = [] } = useQuery({ queryKey: ['games'], queryFn: async () => { const { data, error } = await db.from('games').select('id,name').eq('is_active',true).order('name'); if(error) throw error; return data } })
   const { addToast } = useUIStore()
   const qc = useQueryClient()
 
   const { data: queueEntry, isLoading } = useQuery({
     queryKey: ['matchmaking-queue', user?.id],
+    refetchInterval: 5000,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await db
         .from('matchmaking_queue').select('*').eq('player_id', user!.id).maybeSingle()
       return data
     },
@@ -35,17 +39,11 @@ export function MatchmakingPage() {
         }
       },
     },
-    [user?.id],
   )
 
   const joinMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('matchmaking_queue').insert({
-        player_id: user!.id,
-        elo_rating: profile?.elo_rating ?? 1000,
-        queue_type: 'solo',
-        status: 'searching',
-      })
+      const { error } = await db.rpc('join_queue', { p_game_id: gameId })
       if (error) throw error
     },
     onSuccess: () => { addToast('info', 'Recherche en cours...'); qc.invalidateQueries({ queryKey: ['matchmaking-queue'] }) },
@@ -54,7 +52,7 @@ export function MatchmakingPage() {
 
   const leaveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('matchmaking_queue').delete().eq('player_id', user!.id)
+      const { error } = await db.from('matchmaking_queue').delete().eq('player_id', user!.id)
       if (error) throw error
     },
     onSuccess: () => { addToast('info', 'File d\'attente quittée'); qc.invalidateQueries({ queryKey: ['matchmaking-queue'] }) },
@@ -68,14 +66,14 @@ export function MatchmakingPage() {
     if (!inQueue) return
 
     // Appeler matchmaking-tick immédiatement
-    supabase.functions.invoke('matchmaking-tick').catch(console.error)
+    db.rpc('matchmaking_tick').then(({error}) => { if(error) addToast('error',error.message) })
 
     const interval = setInterval(() => {
-      supabase.functions.invoke('matchmaking-tick').catch(console.error)
+      db.rpc('matchmaking_tick').then(({error}) => { if(error) addToast('error',error.message) })
     }, 10000) // Toutes les 10 secondes
 
     return () => clearInterval(interval)
-  }, [inQueue])
+  }, [inQueue, addToast])
 
   return (
     <div className="screen-enter">
@@ -106,7 +104,7 @@ export function MatchmakingPage() {
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 20, marginBottom: 8 }}>Match trouvé !</div>
             <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>Rejoins ton lobby et prépare-toi.</div>
-            <Btn size="lg">Rejoindre le lobby</Btn>
+            <Link to={`/app/lobbies/${queueEntry?.party_id}`}><Btn size="lg">Rejoindre le lobby</Btn></Link>
           </>
         ) : inQueue ? (
           <>
@@ -135,7 +133,8 @@ export function MatchmakingPage() {
             <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 24 }}>
               Lance une recherche de match · Solo · Ranked
             </div>
-            <Btn size="lg" onClick={() => joinMutation.mutate()} loading={joinMutation.isPending || isLoading}>
+            <label htmlFor="queue-game">Jeu</label><select id="queue-game" value={gameId} onChange={e=>setGameId(e.target.value)} style={{padding:12,margin:12,maxWidth:'100%'}}><option value="">Choisir un jeu</option>{games.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select>
+            <Btn disabled={!gameId} size="lg" onClick={() => joinMutation.mutate()} loading={joinMutation.isPending || isLoading}>
               Rechercher un match
             </Btn>
           </>

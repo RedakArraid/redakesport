@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  server: { proxy: { '/api': process.env.API_PROXY || 'http://127.0.0.1:3001' } },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -21,9 +22,7 @@ export default defineConfig({
             if (id.includes('@tanstack/react-query')) {
               return 'query-vendor';
             }
-            if (id.includes('@supabase/supabase-js')) {
-              return 'supabase-vendor';
-            }
+
           }
         },
       },

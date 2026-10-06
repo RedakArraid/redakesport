@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
 import { Card, Spinner } from '../../components/ui'
 
@@ -47,7 +47,7 @@ export function LeaderboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['leaderboard', roleFilter, page],
     queryFn: async () => {
-      let query = supabase
+      let query = db
         .from('profiles')
         .select('id, username, elo_rating, role, country, avatar_url', { count: 'exact' })
         .not('elo_rating', 'is', null)
@@ -103,8 +103,9 @@ export function LeaderboardPage() {
         </Card>
       ) : (
         <>
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <Card className="table-scroll" style={{ padding: 0, overflowX: 'auto' }}>
+            <p className="table-hint">Fais glisser le tableau pour voir toutes les colonnes.</p>
+                <table style={{ minWidth: 520, width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--mute-bg)', borderBottom: '1px solid var(--border)' }}>
                   {['#', 'Joueur', 'Pays', 'Rôle', 'ELO'].map((h, i) => (

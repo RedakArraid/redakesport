@@ -1,16 +1,20 @@
-import React, { useState } from 'react'
+import { formatLabels, formatPrize } from '../../lib/labels'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/api'
 import { useIsOrganizer } from '../../stores/authStore'
-import { Card, Badge, Btn, SectionTitle, Spinner } from '../../components/ui'
+import { Card, Badge, Btn, Spinner } from '../../components/ui'
 import type { Tournament, TournamentStatus } from '../../types/database'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 const STATUS_LABELS: Record<TournamentStatus, string> = {
-  draft: 'Brouillon', registration: 'Inscriptions', ongoing: 'En cours',
-  completed: 'Terminé', cancelled: 'Annulé',
+  draft: 'Brouillon',
+  registration: 'Inscriptions',
+  ongoing: 'En cours',
+  completed: 'Terminé',
+  cancelled: 'Annulé',
 }
 const STATUS_COLORS: Record<TournamentStatus, { color: string; bg: string }> = {
   draft: { color: 'var(--muted)', bg: 'var(--mute-bg)' },
@@ -24,15 +28,28 @@ export function TournamentsListPage() {
   const isOrganizer = useIsOrganizer()
   const location = useLocation()
   const [filter, setFilter] = useState<TournamentStatus | 'all'>('all')
+  const [gameId, setGameId] = useState('')
+  const { data: games = [] } = useQuery({
+    queryKey: ['tournament-games'],
+    queryFn: async () => {
+      const { data, error } = await db.from('games').select('id,name').order('name')
+      if (error) throw error
+      return data
+    },
+  })
 
   const { data: tournaments, isLoading } = useQuery({
-    queryKey: ['tournaments', filter],
+    queryKey: ['tournaments', 'list', filter, gameId],
     queryFn: async () => {
-      let q = supabase.from('tournaments').select('*').order('created_at', { ascending: false })
+      let q = db
+        .from('tournaments')
+        .select('*, game:games(name)')
+        .order('created_at', { ascending: false })
       if (filter !== 'all') q = q.eq('status', filter)
+      if (gameId) q = q.eq('game_id', gameId)
       const { data, error } = await q
       if (error) throw error
-      return data as Tournament[]
+      return data as (Tournament & { game: { name: string } | null })[]
     },
   })
 
@@ -45,10 +62,28 @@ export function TournamentsListPage() {
 
   return (
     <div className="screen-enter">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 24, letterSpacing: -0.5 }}>Tournois</div>
-          <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>Tous les tournois de la plateforme</div>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 900,
+              fontSize: 24,
+              letterSpacing: -0.5,
+            }}
+          >
+            Tournois
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>
+            Tous les tournois de la plateforme
+          </div>
         </div>
         {isOrganizer && (
           <Link to="/app/tournaments/create">
@@ -58,47 +93,142 @@ export function TournamentsListPage() {
       </div>
 
       {/* Filtres */}
+      <div style={{ marginBottom: 16 }}>
+        <label htmlFor="tournament-game">Jeu</label>
+        <select
+          id="tournament-game"
+          value={gameId}
+          onChange={(e) => setGameId(e.target.value)}
+          style={{
+            display: 'block',
+            marginTop: 6,
+            width: 280,
+            maxWidth: '100%',
+            minHeight: 44,
+            padding: '10px 12px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            background: 'var(--card)',
+            color: 'var(--ink)',
+            font: 'inherit',
+            fontSize: 14,
+          }}
+        >
+          <option value="">Tous les jeux</option>
+          {games.map((game) => (
+            <option key={game.id} value={game.id}>
+              {game.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {filters.map((f) => (
-          <button key={f.key} onClick={() => setFilter(f.key)}
-            className={`topnav-item${filter === f.key ? ' active' : ''}`}>
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`topnav-item${filter === f.key ? ' active' : ''}`}
+          >
             {f.label}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={32} /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+          <Spinner size={32} />
+        </div>
       ) : tournaments?.length === 0 ? (
         <Card style={{ padding: 48, textAlign: 'center', color: 'var(--muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🏆</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Aucun tournoi trouvé</div>
-          {isOrganizer && <Link to="/app/tournaments/create"><Btn>Créer le premier tournoi</Btn></Link>}
+          {isOrganizer && (
+            <Link to="/app/tournaments/create">
+              <Btn>Créer le premier tournoi</Btn>
+            </Link>
+          )}
         </Card>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: 16,
+          }}
+        >
           {tournaments?.map((t) => {
             const sc = STATUS_COLORS[t.status]
-            const basePath = location.pathname.startsWith('/app') ? '/app/tournaments' : '/tournaments'
+            const basePath = location.pathname.startsWith('/app')
+              ? '/app/tournaments'
+              : '/tournaments'
             return (
               <Link key={t.id} to={`${basePath}/${t.id}`} style={{ textDecoration: 'none' }}>
-                <Card style={{ padding: '20px 22px', cursor: 'pointer', height: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: -0.3, lineHeight: 1.2, flex: 1 }}>
+                <Card
+                  style={{
+                    padding: '20px 22px',
+                    cursor: 'pointer',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 800,
+                        fontSize: 16,
+                        letterSpacing: -0.3,
+                        lineHeight: 1.2,
+                        flex: 1,
+                      }}
+                    >
                       {t.name}
                     </div>
                     <Badge label={STATUS_LABELS[t.status]} color={sc.color} bg={sc.bg} />
                   </div>
 
-                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--muted)' }}>
-                    <span>📋 {t.format.replace(/_/g, ' ')}</span>
-                    {t.team_size && <span>👥 {t.team_size}v{t.team_size}</span>}
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>
+                    🎮 {t.game?.name || 'Jeu non précisé'} · BO{t.best_of}
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 14,
+                      flexWrap: 'wrap',
+                      fontSize: 12,
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <span>📋 {formatLabels[t.format]}</span>
+                    {t.team_size && (
+                      <span>
+                        👥 {t.team_size}v{t.team_size}
+                      </span>
+                    )}
                     {t.region && <span>🌍 {t.region}</span>}
                   </div>
 
                   {t.prize_pool && (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
-                      💰 {t.prize_pool.total.toLocaleString()} {t.prize_pool.currency}
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        color: 'var(--accent)',
+                      }}
+                    >
+                      💰 {formatPrize(t.prize_pool)}
                     </div>
                   )}
 

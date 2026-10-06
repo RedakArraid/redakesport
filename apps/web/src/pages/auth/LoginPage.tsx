@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,13 +8,14 @@ import { Btn } from '../../components/ui'
 
 const schema = z.object({
   email: z.string().email('Email invalide'),
-  password: z.string().min(6, 'Minimum 6 caractères'),
+  password: z.string().min(8, 'Minimum 8 caractères'),
 })
 
 type FormData = z.infer<typeof schema>
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [error, setError] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -24,7 +25,7 @@ export function LoginPage() {
     setError(null)
     const { error: err } = await signInWithEmail(data.email, data.password)
     if (err) { setError(err.message); return }
-    navigate('/app/dashboard')
+    navigate(typeof location.state?.from === 'string' && location.state.from.startsWith('/app/') ? location.state.from : '/app/dashboard')
   }
 
   return (
@@ -37,7 +38,7 @@ export function LoginPage() {
           <div style={{ color: 'var(--muted)', fontSize: 14 }}>Connecte-toi à ton compte</div>
         </div>
 
-        <Btn onClick={signInWithDiscord} variant="secondary" size="lg" style={{ width: '100%', marginBottom: 20, gap: 10 }}>
+        <Btn onClick={async () => { const { error } = await signInWithDiscord(); if (error) setError(error.message) }} variant="secondary" size="lg" style={{ width: '100%', marginBottom: 20, gap: 10 }}>
           <span>🎮</span> Continuer avec Discord
         </Btn>
 
@@ -45,13 +46,13 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelStyle}>Email</label>
-            <input {...register('email')} type="email" placeholder="ton@email.com" style={inputStyle} />
+            <label htmlFor="email" style={labelStyle}>Email</label>
+            <input id="email" autoComplete="email" {...register('email')} type="email" placeholder="ton@email.com" style={inputStyle} />
             {errors.email && <span style={errStyle}>{errors.email.message}</span>}
           </div>
           <div>
-            <label style={labelStyle}>Mot de passe</label>
-            <input {...register('password')} type="password" placeholder="••••••••" style={inputStyle} />
+            <label htmlFor="password" style={labelStyle}>Mot de passe</label>
+            <input id="password" autoComplete="current-password" {...register('password')} type="password" placeholder="••••••••" style={inputStyle} />
             {errors.password && <span style={errStyle}>{errors.password.message}</span>}
           </div>
 
@@ -61,6 +62,7 @@ export function LoginPage() {
             Se connecter
           </Btn>
         </form>
+        <p><Link to="/forgot-password">Mot de passe oublié ?</Link></p>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
           Pas encore de compte ?{' '}

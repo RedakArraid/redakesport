@@ -1,10 +1,12 @@
-import { QueryClient } from '@tanstack/react-query'
-
+import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query'
+import { useUIStore } from '../stores/uiStore'
+const showError = (error: Error) => useUIStore.getState().addToast('error', error.message)
 export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 30,
-      retry: 1,
+  queryCache: new QueryCache({ onError: showError }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      if (!mutation.options.onError) showError(error)
     },
-  },
+  }),
+  defaultOptions: { queries: { staleTime: 15000, retry: 1 } },
 })

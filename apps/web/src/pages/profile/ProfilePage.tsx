@@ -1,6 +1,8 @@
+import { roleLabels } from '../../lib/labels'
 import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { useMediaUpload } from '../../hooks/useMediaUpload'
+import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
 import { Card, SectionTitle, Btn, Badge, Spinner } from '../../components/ui'
@@ -11,7 +13,8 @@ import { fr } from 'date-fns/locale'
 export function ProfilePage() {
   const { user, profile, setProfile } = useAuthStore()
   const { addToast } = useUIStore()
-  const qc = useQueryClient()
+  const { upload, isUploading } = useMediaUpload()
+  const [avatar, setAvatar] = useState(profile?.avatar_url ?? '')
   const [editing, setEditing] = useState(false)
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
   const [bio, setBio] = useState(profile?.bio ?? '')
@@ -21,7 +24,7 @@ export function ProfilePage() {
   const { data: eloHistory, isLoading: eloLoading } = useQuery({
     queryKey: ['elo-history', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('elo_history')
         .select('*')
         .eq('player_id', user!.id)
@@ -35,9 +38,15 @@ export function ProfilePage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('profiles')
-        .update({ display_name: displayName || null, bio: bio || null, country: country || null, discord_tag: discordTag || null })
+        .update({
+          avatar_url: avatar || null,
+          display_name: displayName || null,
+          bio: bio || null,
+          country: country || null,
+          discord_tag: discordTag || null,
+        })
         .eq('id', user!.id)
         .select()
         .single()
@@ -52,7 +61,12 @@ export function ProfilePage() {
     onError: (e: Error) => addToast('error', e.message),
   })
 
-  if (!profile) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={32} /></div>
+  if (!profile)
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+        <Spinner size={32} />
+      </div>
+    )
 
   return (
     <div className="screen-enter" style={{ maxWidth: 700, margin: '0 auto' }}>
@@ -60,45 +74,150 @@ export function ProfilePage() {
       <Card style={{ padding: '28px 32px', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* Avatar */}
-          <div style={{
-            width: 72, height: 72, borderRadius: '50%',
-            background: 'var(--ink)', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 28, flexShrink: 0,
-          }}>
-            {profile.username[0]?.toUpperCase()}
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              background: 'var(--ink)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 900,
+              fontSize: 28,
+              flexShrink: 0,
+            }}
+          >
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="Avatar"
+                style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              profile.username[0]?.toUpperCase()
+            )}
           </div>
 
           <div style={{ flex: 1 }}>
             {editing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Nom affiché" style={inputSt} />
-                <textarea value={bio} onChange={(e) => setBio(e.target.value)}
-                  placeholder="Bio..." rows={2} style={{ ...inputSt, resize: 'vertical' }} />
+                <label>
+                  Photo de profil (PNG, JPEG ou WebP)
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={isUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      try {
+                        const { url } = await upload(
+                          file,
+                          'avatars',
+                          `${user!.id}/${crypto.randomUUID()}`,
+                        )
+                        setAvatar(url)
+                      } catch (error) {
+                        addToast(
+                          'error',
+                          error instanceof Error ? error.message : 'Upload impossible',
+                        )
+                      }
+                    }}
+                  />
+                </label>
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Nom affiché"
+                  style={inputSt}
+                />
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Bio..."
+                  rows={2}
+                  style={{ ...inputSt, resize: 'vertical' }}
+                />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pays" style={inputSt} />
-                  <input value={discordTag} onChange={(e) => setDiscordTag(e.target.value)} placeholder="Discord tag" style={inputSt} />
+                  <input
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder="Pays"
+                    style={inputSt}
+                  />
+                  <input
+                    value={discordTag}
+                    onChange={(e) => setDiscordTag(e.target.value)}
+                    placeholder="Discord tag"
+                    style={inputSt}
+                  />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Btn onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} size="sm">Sauvegarder</Btn>
-                  <Btn variant="secondary" size="sm" onClick={() => setEditing(false)}>Annuler</Btn>
+                  <Btn
+                    onClick={() => saveMutation.mutate()}
+                    loading={saveMutation.isPending || isUploading}
+                    size="sm"
+                  >
+                    Sauvegarder
+                  </Btn>
+                  <Btn variant="secondary" size="sm" onClick={() => setEditing(false)}>
+                    Annuler
+                  </Btn>
                 </div>
               </div>
             ) : (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                  }}
+                >
                   <div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: -0.5 }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 900,
+                        fontSize: 22,
+                        letterSpacing: -0.5,
+                      }}
+                    >
                       {profile.display_name ?? profile.username}
                     </div>
                     <div style={{ color: 'var(--muted)', fontSize: 13 }}>@{profile.username}</div>
                   </div>
-                  <Btn variant="secondary" size="sm" onClick={() => { setDisplayName(profile.display_name ?? ''); setBio(profile.bio ?? ''); setCountry(profile.country ?? ''); setDiscordTag(profile.discord_tag ?? ''); setEditing(true) }}>
+                  <Btn
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setAvatar(profile.avatar_url ?? '')
+                      setDisplayName(profile.display_name ?? '')
+                      setBio(profile.bio ?? '')
+                      setCountry(profile.country ?? '')
+                      setDiscordTag(profile.discord_tag ?? '')
+                      setEditing(true)
+                    }}
+                  >
                     Modifier
                   </Btn>
                 </div>
-                {profile.bio && <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: '10px 0 0' }}>{profile.bio}</p>}
+                {profile.bio && (
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: 'var(--muted)',
+                      lineHeight: 1.6,
+                      margin: '10px 0 0',
+                    }}
+                  >
+                    {profile.bio}
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -107,24 +226,60 @@ export function ProfilePage() {
         {/* Infos */}
         {!editing && (
           <div style={{ display: 'flex', gap: 14, marginTop: 16, flexWrap: 'wrap' }}>
-            <Badge label={profile.role} color="var(--ink)" bg="var(--mute-bg)" />
-            {profile.country && <span style={{ fontSize: 13, color: 'var(--muted)' }}>🌍 {profile.country}</span>}
-            {profile.discord_tag && <span style={{ fontSize: 13, color: 'var(--muted)' }}>💬 {profile.discord_tag}</span>}
+            <Badge label={roleLabels[profile.role]} color="var(--ink)" bg="var(--mute-bg)" />
+            {profile.country && (
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>🌍 {profile.country}</span>
+            )}
+            {profile.discord_tag && (
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>💬 {profile.discord_tag}</span>
+            )}
           </div>
         )}
       </Card>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div
+        className="stats-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
         {[
           { label: 'ELO', value: profile.elo_rating, icon: '⚡' },
-          { label: 'Membre depuis', value: format(new Date(profile.created_at), 'MMM yyyy', { locale: fr }), icon: '📅' },
-          { label: 'Rôle', value: profile.role, icon: '🎖' },
+          {
+            label: 'Membre depuis',
+            value: format(new Date(profile.created_at), 'MMM yyyy', { locale: fr }),
+            icon: '📅',
+          },
+          { label: 'Rôle', value: roleLabels[profile.role], icon: '🎖' },
         ].map((s) => (
           <Card key={s.label} style={{ padding: '16px 18px', textAlign: 'center' }}>
             <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 2 }}>{s.label}</div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 900,
+                fontSize: 18,
+                letterSpacing: -0.5,
+              }}
+            >
+              {s.value}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--muted)',
+                fontWeight: 600,
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+                marginTop: 2,
+              }}
+            >
+              {s.label}
+            </div>
           </Card>
         ))}
       </div>
@@ -132,19 +287,31 @@ export function ProfilePage() {
       {/* ELO History */}
       <Card>
         <SectionTitle>Historique ELO</SectionTitle>
-        {eloLoading ? <Spinner /> : !eloHistory || eloHistory.length === 0 ? (
-          <div style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
+        {eloLoading ? (
+          <Spinner />
+        ) : !eloHistory || eloHistory.length === 0 ? (
+          <div
+            style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}
+          >
             Pas encore de matchs classés
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {eloHistory.map((h) => (
-              <div key={h.id} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '8px 0', borderBottom: '1px solid var(--border)',
-              }}>
+              <div
+                key={h.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 0',
+                  borderBottom: '1px solid var(--border)',
+                }}
+              >
                 <div>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}>
+                  <span
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}
+                  >
                     {h.old_rating} → {h.new_rating}
                   </span>
                 </div>
@@ -152,11 +319,16 @@ export function ProfilePage() {
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>
                     {format(new Date(h.recorded_at), 'd MMM', { locale: fr })}
                   </span>
-                  <span style={{
-                    fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14,
-                    color: h.delta > 0 ? '#1a7a4a' : 'var(--accent)',
-                  }}>
-                    {h.delta > 0 ? '+' : ''}{h.delta}
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 800,
+                      fontSize: 14,
+                      color: h.delta > 0 ? '#1a7a4a' : 'var(--accent)',
+                    }}
+                  >
+                    {h.delta > 0 ? '+' : ''}
+                    {h.delta}
                   </span>
                 </div>
               </div>
@@ -169,7 +341,13 @@ export function ProfilePage() {
 }
 
 const inputSt: React.CSSProperties = {
-  width: '100%', padding: '9px 12px', borderRadius: 8,
-  border: '1.5px solid var(--border)', background: 'var(--bg)',
-  fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box',
+  width: '100%',
+  padding: '9px 12px',
+  borderRadius: 8,
+  border: '1.5px solid var(--border)',
+  background: 'var(--bg)',
+  fontSize: 14,
+  fontFamily: 'var(--font-body)',
+  outline: 'none',
+  boxSizing: 'border-box',
 }

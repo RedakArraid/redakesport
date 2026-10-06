@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, Session } from '@supabase/supabase-js'
+import type { User, Session } from '../lib/api'
 import type { Profile, Role } from '../types/database'
 
 interface AuthState {

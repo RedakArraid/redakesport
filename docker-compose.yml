@@ -1,12 +1,47 @@
 services:
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        - VITE_SUPABASE_URL=http://localhost:8001
-        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgwODE5MzQ0LCJleHAiOjE5Mzg0OTkzNDR9.cSVB6_W1lfQaiW6GV8tp5TiL8ea-VNme6XJYxg9JJmY
-    container_name: redakesport-web
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: redakesport
+      POSTGRES_USER: redak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-redak_local}
     ports:
-      - "5175:5173"
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redak -d redakesport"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://redak:${POSTGRES_PASSWORD:-redak_local}@db:5432/redakesport
+      NODE_ENV: ${NODE_ENV:-development}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:5175}
+      HOST: 0.0.0.0
+      PORT: 3001
+      UPLOAD_DIR: /app/var/uploads
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID:-}
+      TWITCH_ACCESS_TOKEN: ${TWITCH_ACCESS_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    ports:
+      - "127.0.0.1:5175:3001"
+    volumes:
+      - uploads:/app/var/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  uploads:

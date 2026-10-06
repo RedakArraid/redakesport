@@ -1,272 +1,324 @@
-import React, { useState } from 'react'
+import {
+  formatLabels,
+  formatPrize,
+  tournamentStatusLabels,
+  registrationStatusLabels,
+} from '../../lib/labels'
+import { useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
-import { useAuthStore, useIsOrganizer } from '../../stores/authStore'
+import { db } from '../../lib/api'
+import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
-import { Card, Badge, Btn, SectionTitle, Spinner } from '../../components/ui'
-import type { Tournament, TournamentRegistration } from '../../types/database'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { Card, Badge, Btn, Spinner } from '../../components/ui'
+import { invokeFunction } from '../../lib/functions'
 
 export function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { user, profile } = useAuthStore()
-  const isOrganizer = useIsOrganizer()
-  const { addToast } = useUIStore()
+  const { user } = useAuthStore()
   const qc = useQueryClient()
-  const location = useLocation()
-  const isApp = location.pathname.startsWith('/app')
-  const [activeTab, setActiveTab] = useState<'overview' | 'bracket' | 'teams'>('overview')
-
-  const { data: tournament, isLoading } = useQuery({
+  const addToast = useUIStore((s) => s.addToast)
+  const base = useLocation().pathname.startsWith('/app') ? '/app' : ''
+  const [tab, setTab] = useState<'overview' | 'teams'>('overview')
+  const {
+    data: t,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['tournament', id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('tournaments').select('*, game:games(name)').eq('id', id!).single()
+      const { data, error } = await db
+        .from('tournaments')
+        .select('*, game:games(name)')
+        .eq('id', id!)
+        .single()
       if (error) throw error
-      return data as Tournament & { game?: { name: string } | null }
-    },
-    enabled: !!id,
-  })
-
-  const { data: registrations } = useQuery({
-    queryKey: ['tournament', id, 'registrations'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tournament_registrations').select('*').eq('tournament_id', id!)
-      if (error) throw error
-      return data as TournamentRegistration[]
-    },
-    enabled: !!id,
-  })
-
-  // Charger le club du capitaine si capitaine
-  const { data: captainClub } = useQuery({
-    queryKey: ['captain-club', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('clubs').select('id, name').eq('captain_id', user!.id).maybeSingle()
       return data
     },
-    enabled: !!user && profile?.role === 'captain',
   })
-
-  // Charger le club du joueur si joueur
-  const { data: playerClub } = useQuery({
-    queryKey: ['player-club', user?.id],
+  const { data: registrations = [] } = useQuery({
+    queryKey: ['tournament', id, 'registrations'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await db
+        .from('tournament_registrations')
+        .select('*, club:clubs(name), player:profiles(username)')
+        .eq('tournament_id', id!)
+        .order('registered_at')
+      if (error) throw error
+      return data
+    },
+    enabled: !!t,
+  })
+  const { data: clubs = [] } = useQuery({
+    queryKey: ['registration-clubs', user?.id],
+    queryFn: async () => {
+      const { data, error } = await db.from('clubs').select('id, name').eq('captain_id', user!.id)
+      if (error) throw error
+      return data
+    },
+    enabled: !!user,
+  })
+  const { data: membership } = useQuery({
+    queryKey: ['registration-membership', user?.id],
+    queryFn: async () => {
+      const { data, error } = await db
         .from('club_members')
-        .select('club_id, club:clubs(name)')
+        .select('club_id')
         .eq('player_id', user!.id)
-        .maybeSingle()
-      return data as any
-    },
-    enabled: !!user && profile?.role === 'player',
-  })
-
-  const isTeamTournament = tournament ? tournament.team_size > 1 : false
-
-  // Calculer l'inscription correspondante pour l'utilisateur
-  const myRegistration = registrations?.find((r) => {
-    if (isTeamTournament) {
-      const clubId = profile?.role === 'captain' ? captainClub?.id : playerClub?.club_id
-      return r.club_id === clubId
-    } else {
-      return r.player_id === user?.id
-    }
-  })
-
-  const registerMutation = useMutation({
-    mutationFn: async () => {
-      const payload: any = {
-        tournament_id: id!,
-        status: 'pending',
-      }
-      if (isTeamTournament) {
-        if (!captainClub) throw new Error('Vous devez avoir créé un club pour inscrire une équipe')
-        payload.club_id = captainClub.id
-      } else {
-        payload.player_id = user!.id
-      }
-
-      const { error } = await supabase.from('tournament_registrations').insert(payload)
       if (error) throw error
+      return data
     },
-    onSuccess: () => {
-      addToast('success', 'Inscription envoyée !')
-      qc.invalidateQueries({ queryKey: ['tournament', id, 'registrations'] })
-    },
+    enabled: !!user,
+  })
+  const refresh = () => {
+    void qc.invalidateQueries()
+  }
+  const action = useMutation({
+    mutationFn: async (job: () => Promise<void>) => job(),
+    onSuccess: refresh,
     onError: (e: Error) => addToast('error', e.message),
   })
-
-  const generateBracketMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.functions.invoke('bracket-generate', {
-        body: { tournament_id: id, seeding: 'random' },
-      })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      addToast('success', 'Bracket généré !')
-      qc.invalidateQueries({ queryKey: ['tournament', id] })
-    },
-    onError: (e: Error) => addToast('error', e.message),
-  })
-
-  if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={32} /></div>
-  if (!tournament) return <div>Tournoi introuvable</div>
-
-  const approvedCount = registrations?.filter((r) => r.status === 'approved').length ?? 0
-
+  const run = (job: () => Promise<void>) => action.mutate(job)
+  if (isLoading) return <Spinner />
+  if (error || !t)
+    return (
+      <Card>
+        <h1>Tournoi indisponible</h1>
+        <p>Ce tournoi est privé, n’existe plus ou ne peut pas être chargé.</p>
+        <Link to={`${base}/tournaments`}>Voir les tournois</Link>
+      </Card>
+    )
+  const owner = !!user && t.organizer_id === user.id
+  const team = t.team_size > 1
+  const myRegistration = registrations.find(
+    (r) =>
+      ['pending', 'approved'].includes(r.status) &&
+      (r.player_id === user?.id || membership?.some((m) => m.club_id === r.club_id)),
+  )
+  const approved = registrations.filter((r) => r.status === 'approved').length
+  const open =
+    t.status === 'registration' &&
+    (!t.registration_deadline || new Date(t.registration_deadline) > new Date())
+  const full =
+    !!t.max_teams &&
+    registrations.filter((r) => ['pending', 'approved'].includes(r.status)).length >= t.max_teams
+  const publish = async () => {
+    const { error } = await db.from('tournaments').update({ status: 'registration' }).eq('id', id!)
+    if (error) throw error
+    addToast('success', 'Inscriptions ouvertes')
+  }
+  const register = async () => {
+    const { error } = await db.rpc('register_tournament', {
+      p_tournament_id: id!,
+      p_club_id: team ? clubs[0]?.id : null,
+    })
+    if (error) throw error
+    addToast('success', 'Inscription envoyée')
+  }
   return (
     <div className="screen-enter">
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>
-              {tournament.name}
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              {tournament.game?.name && <span>🎮 {tournament.game.name}</span>}
-              <span>📋 {tournament.format.replace(/_/g, ' ')}</span>
-              {tournament.region && <span>🌍 {tournament.region}</span>}
-              {tournament.start_date && <span>📅 {format(new Date(tournament.start_date), 'd MMM yyyy', { locale: fr })}</span>}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Badge label={tournament.status} color="var(--ink)" bg="var(--mute-bg)" />
-            {isOrganizer && tournament.status === 'registration' && (
-              <Btn onClick={() => generateBracketMutation.mutate()} loading={generateBracketMutation.isPending} variant="secondary">
-                Générer le bracket
-              </Btn>
-            )}
-
-            {/* Inscription Solo ou Équipe */}
-            {!isOrganizer && tournament.status === 'registration' && (
-              <>
-                {!user ? (
-                  <Link to="/login">
-                    <Btn>Se connecter pour s'inscrire</Btn>
-                  </Link>
-                ) : isTeamTournament ? (
-                  profile?.role === 'captain' ? (
-                    captainClub ? (
-                      !myRegistration && (
-                        <Btn onClick={() => registerMutation.mutate()} loading={registerMutation.isPending}>
-                          Inscrire mon club ({captainClub.name})
-                        </Btn>
-                      )
-                    ) : (
-                      <Btn disabled variant="secondary">Créer un club d'abord</Btn>
-                    )
-                  ) : (
-                    <span style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>
-                      ⚠️ Réservé aux capitaines d'équipe
-                    </span>
-                  )
-                ) : (
-                  !myRegistration && (
-                    <Btn onClick={() => registerMutation.mutate()} loading={registerMutation.isPending}>
-                      S'inscrire
-                    </Btn>
-                  )
-                )}
-              </>
-            )}
-
-            {myRegistration && (
-              <Badge
-                label={isTeamTournament ? `Équipe Inscrite · ${myRegistration.status}` : `Inscrit · ${myRegistration.status}`}
-                color="#1a7a4a"
-                bg="#e6f7ef"
-              />
-            )}
-          </div>
+      <Link to={`${base}/tournaments`}>← Tournois</Link>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 16,
+          flexWrap: 'wrap',
+          margin: '20px 0',
+        }}
+      >
+        <div>
+          <h1 style={{ margin: '0 0 8px' }}>{t.name}</h1>
+          <p style={{ color: 'var(--muted)' }}>
+            {t.game?.name} · {t.team_size}v{t.team_size} · {t.region || 'Toutes régions'}
+          </p>
         </div>
+        <Badge label={tournamentStatusLabels[t.status]} />
       </div>
-
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
-        {[
-          { label: 'Équipes inscrites', value: `${approvedCount}${tournament.max_teams ? `/${tournament.max_teams}` : ''}` },
-          { label: 'Format', value: tournament.team_size + 'v' + tournament.team_size },
-          tournament.prize_pool ? { label: 'Prize Pool', value: `${tournament.prize_pool.total.toLocaleString()} ${tournament.prize_pool.currency}` } : null,
-        ].filter(Boolean).map((s) => s && (
-          <Card key={s.label} style={{ padding: '14px 18px' }}>
-            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>{s.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: -0.5 }}>{s.value}</div>
+      <div className="action-row" style={{ marginBottom: 24 }}>
+        {owner && t.status === 'draft' && (
+          <Btn loading={action.isPending} onClick={() => run(publish)}>
+            Ouvrir les inscriptions
+          </Btn>
+        )}
+        {owner && t.status === 'registration' && (
+          <Btn
+            disabled={approved < 2 || (t.format === 'hybrid' && approved < 4)}
+            loading={action.isPending}
+            onClick={() =>
+              run(async () => {
+                await invokeFunction('bracket-generate', { tournament_id: id, seeding: 'elo' })
+                addToast('success', 'Tournoi lancé !')
+              })
+            }
+          >
+            Lancer le tournoi ({approved} validés)
+          </Btn>
+        )}
+        {owner && (
+          <Link to={`/app/tournaments/${id}/analytics`}>
+            <Btn variant="secondary">Statistiques</Btn>
+          </Link>
+        )}
+        {open &&
+          !myRegistration &&
+          !owner &&
+          (!user ? (
+            <Link to="/login">
+              <Btn>Se connecter pour s’inscrire</Btn>
+            </Link>
+          ) : team && !clubs.length ? (
+            <Link to="/app/club">Ton capitaine peut inscrire ton club</Link>
+          ) : (
+            <Btn disabled={full} loading={action.isPending} onClick={() => run(register)}>
+              {full ? 'Tournoi complet' : team ? `Inscrire ${clubs[0]?.name}` : 'S’inscrire'}
+            </Btn>
+          ))}
+        {myRegistration && (
+          <>
+            <Badge label={`Inscription : ${registrationStatusLabels[myRegistration.status]}`} />
+            {t.status === 'registration' &&
+              (myRegistration.player_id === user?.id ||
+                clubs.some((c) => c.id === myRegistration.club_id)) && (
+                <Btn
+                  variant="secondary"
+                  loading={action.isPending}
+                  onClick={() =>
+                    run(async () => {
+                      const { error } = await db.rpc('withdraw_registration', {
+                        p_id: myRegistration.id,
+                      })
+                      if (error) throw error
+                    })
+                  }
+                >
+                  Retirer l’inscription
+                </Btn>
+              )}
+          </>
+        )}
+      </div>
+      <div className="action-row" style={{ marginBottom: 20 }}>
+        <button
+          className={`topnav-item ${tab === 'overview' ? 'active' : ''}`}
+          onClick={() => setTab('overview')}
+        >
+          Aperçu
+        </button>
+        <button
+          className={`topnav-item ${tab === 'teams' ? 'active' : ''}`}
+          onClick={() => setTab('teams')}
+        >
+          Participants ({approved}
+          {t.max_teams ? `/${t.max_teams}` : ''})
+        </button>
+        <Link className="topnav-item" to={`${base}/tournaments/${id}/bracket`}>
+          Matchs et bracket
+        </Link>
+        <Link className="topnav-item" to={`${base}/tournaments/${id}/standings`}>
+          Classement
+        </Link>
+        {['hybrid', 'round_robin'].includes(t.format) && (
+          <Link className="topnav-item" to={`${base}/tournaments/${id}/groups`}>
+            Poules
+          </Link>
+        )}
+      </div>
+      {tab === 'overview' ? (
+        <div style={{ display: 'grid', gap: 16 }}>
+          <Card>
+            <h2>Informations</h2>
+            <p>
+              Format : {formatLabels[t.format]} · BO{t.best_of}
+            </p>
+            <p>
+              {t.best_of > 1
+                ? `Résultat de série : ${Math.floor(t.best_of / 2) + 1} manches gagnées pour remporter une rencontre.`
+                : 'Résultat : score du jeu sur un seul match.'}{' '}
+              Un forfait valide la victoire adverse sans modifier l’ELO.
+            </p>
+            {t.format === 'swiss' && (
+              <p>
+                {approved >= 2
+                  ? `${Math.ceil(Math.log2(approved))} rondes pour ${approved} participants validés.`
+                  : 'Nombre de rondes fixé au lancement (4 pour 16 participants).'}{' '}
+                Aucune rencontre répétée, une exemption maximum par participant. Départage : points,
+                Buchholz (points des adversaires), Sonneborn-Berger (points des adversaires battus,
+                moitié en cas de nul), différence de scores, puis identifiant.
+              </p>
+            )}
+            <p>
+              Début :{' '}
+              {t.start_date
+                ? new Date(t.start_date).toLocaleString('fr-FR', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })
+                : 'À programmer'}
+            </p>
+            <p>
+              Fin des inscriptions :{' '}
+              {!['draft', 'registration'].includes(t.status)
+                ? 'Inscriptions closes'
+                : t.registration_deadline
+                  ? new Date(t.registration_deadline).toLocaleString('fr-FR', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })
+                  : 'À la fermeture par l’organisateur'}
+            </p>
+            {t.prize_pool && <p>Dotation : {formatPrize(t.prize_pool)}</p>}
           </Card>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-        {(['overview', 'bracket', 'teams'] as const).map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`topnav-item${activeTab === tab ? ' active' : ''}`}>
-            {tab === 'overview' ? '📋 Aperçu' : tab === 'bracket' ? '⚡ Bracket' : '👥 Équipes'}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {tournament.rules && (
-            <Card>
-              <SectionTitle>Règlement</SectionTitle>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.7, color: 'var(--muted)' }}>{tournament.rules}</div>
-            </Card>
-          )}
-          {tournament.registration_deadline && (
-            <Card style={{ padding: '16px 20px', display: 'flex', gap: 14, alignItems: 'center' }}>
-              <span style={{ fontSize: 24 }}>⏰</span>
-              <div>
-                <div style={{ fontWeight: 700, fontFamily: 'var(--font-display)' }}>Fin des inscriptions</div>
-                <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                  {format(new Date(tournament.registration_deadline), 'd MMMM yyyy à HH:mm', { locale: fr })}
-                </div>
+          <Card>
+            <h2>Règlement</h2>
+            <p style={{ whiteSpace: 'pre-wrap' }}>
+              {t.rules || 'L’organisateur n’a pas renseigné de règlement complémentaire.'}
+            </p>
+          </Card>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {!registrations.length && <Card>Aucun participant inscrit pour le moment.</Card>}
+          {registrations.map((r) => (
+            <Card
+              key={r.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <strong>{r.club?.name ?? r.player?.username ?? 'Participant'}</strong>
+              <div className="action-row">
+                <Badge label={registrationStatusLabels[r.status]} />
+                {owner && t.status === 'registration' && r.status === 'pending' && (
+                  <>
+                    {[true, false].map((approve) => (
+                      <Btn
+                        key={String(approve)}
+                        variant={approve ? 'primary' : 'secondary'}
+                        loading={action.isPending}
+                        onClick={() =>
+                          run(async () => {
+                            const { error } = await db.rpc('review_registration', {
+                              p_id: r.id,
+                              p_approve: approve,
+                            })
+                            if (error) throw error
+                          })
+                        }
+                      >
+                        {approve ? 'Accepter' : 'Refuser'}
+                      </Btn>
+                    ))}
+                  </>
+                )}
               </div>
             </Card>
-          )}
+          ))}
         </div>
-      )}
-
-      {activeTab === 'teams' && (
-        <div>
-          {registrations?.length === 0 ? (
-            <Card style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
-              Aucune équipe inscrite pour l'instant
-            </Card>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {registrations?.map((r) => (
-                <Card key={r.id} style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-display)' }}>
-                    {r.club_id ?? r.player_id}
-                  </span>
-                  <Badge label={r.status} />
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'bracket' && (
-        tournament.status === 'draft' || tournament.status === 'registration' ? (
-          <Card style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
-            <div style={{ fontWeight: 700 }}>Le bracket sera généré après la clôture des inscriptions</div>
-          </Card>
-        ) : (
-          <div style={{ textAlign: 'right', marginBottom: 8 }}>
-            <Link to={isApp ? `/app/tournaments/${id}/bracket` : `/tournaments/${id}/bracket`} style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 700 }}>
-              Voir le bracket en plein écran →
-            </Link>
-          </div>
-        )
       )}
     </div>
   )

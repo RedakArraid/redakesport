@@ -1,4 +1,3 @@
-import React from 'react'
 import { Link } from 'react-router-dom'
 import { Btn } from '../../components/ui'
 
@@ -15,7 +14,7 @@ export function LandingPage() {
           letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 28,
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-          Beta gratuite · 247 tournois live
+          La compétition, de bout en bout
         </div>
         <h1 style={{
           fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 'clamp(36px, 7vw, 72px)',
@@ -29,21 +28,7 @@ export function LandingPage() {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link to="/register"><Btn size="lg">Commencer gratuitement →</Btn></Link>
-          <Link to="/login"><Btn size="lg" variant="secondary">Voir une démo</Btn></Link>
-        </div>
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 32, justifyContent: 'center', marginTop: 52, flexWrap: 'wrap' }}>
-          {[
-            { value: '2 400+', label: 'Clubs' },
-            { value: '247', label: 'Tournois live' },
-            { value: '18k+', label: 'Joueurs' },
-            { value: '50k€', label: 'Prize pools' },
-          ].map((s) => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>{s.label}</div>
-            </div>
-          ))}
+          <Link to="/tournaments"><Btn size="lg" variant="secondary">Explorer les tournois</Btn></Link>
         </div>
       </section>
 
@@ -110,7 +95,7 @@ const FEATURES = [
   { icon: '⚡', title: 'Brackets automatiques', desc: 'Génère single elim, double elim ou round robin en un clic. Bracket mis à jour en temps réel.' },
   { icon: '✔', title: 'Validation de scores', desc: 'Les deux équipes soumettent leur score. En cas de désaccord, litige automatique avec l\'organisateur.' },
   { icon: '⚔', title: 'Matchmaking ELO', desc: 'File d\'attente classée avec appairage ±200 ELO par région et par jeu.' },
-  { icon: '🛡', title: 'Gestion de club', desc: 'Roster, candidatures, hub streaming, Pro Clubs League. Tout pour gérer ton équipe.' },
-  { icon: '📡', title: 'Broadcast Studio', desc: 'Overlays OBS, VOD library, outils casters, prédictions. Stream comme un pro.' },
-  { icon: '🔗', title: 'Intégrations', desc: 'Discord bot, webhooks, sync Google Calendar, API REST. Connecte ton écosystème.' },
+  { icon: '🛡', title: 'Gestion de club', desc: 'Effectif, candidatures et inscriptions aux tournois. Tout pour gérer ton équipe.' },
+  { icon: '📡', title: 'Broadcast Studio', desc: 'Overlays OBS actualisés, suivi des diffusions et bibliothèque de replays.' },
+  { icon: '🔗', title: 'Intégrations', desc: 'Webhooks Discord, export de calendrier et API. Connecte tes outils à la compétition.' },
 ]

@@ -16,6 +16,7 @@ type FormData = z.infer<typeof schema>
 
 export function RegisterPage() {
   const navigate = useNavigate()
+  const [confirmation, setConfirmation] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -23,11 +24,13 @@ export function RegisterPage() {
 
   const onSubmit = async (data: FormData) => {
     setError(null)
-    const { error: err } = await signUpWithEmail(data.email, data.password, data.username)
+    const { data: result, error: err } = await signUpWithEmail(data.email, data.password, data.username)
     if (err) { setError(err.message); return }
+    if (!result?.session) { setConfirmation(true); return }
     navigate('/onboarding')
   }
 
+  if (confirmation) return <div style={pageStyle}><div style={boxStyle}><h1>Vérifie ta boîte mail</h1><p>Un lien de confirmation t’a été envoyé. Ouvre-le pour activer ton compte et choisir ton rôle.</p><Link to="/login">Revenir à la connexion</Link></div></div>
   return (
     <div style={pageStyle}>
       <div style={boxStyle}>
@@ -38,7 +41,7 @@ export function RegisterPage() {
           <div style={{ color: 'var(--muted)', fontSize: 14 }}>Rejoins la plateforme</div>
         </div>
 
-        <Btn onClick={signInWithDiscord} variant="secondary" size="lg" style={{ width: '100%', marginBottom: 20 }}>
+        <Btn onClick={async () => { const { error } = await signInWithDiscord(); if (error) setError(error.message) }} variant="secondary" size="lg" style={{ width: '100%', marginBottom: 20 }}>
           <span>🎮</span> Continuer avec Discord
         </Btn>
 
@@ -50,18 +53,18 @@ export function RegisterPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelStyle}>Pseudo <span style={{ color: 'var(--accent)' }}>*</span></label>
-            <input {...register('username')} placeholder="TonPseudo_99" style={inputStyle} />
+            <label htmlFor="username" style={labelStyle}>Pseudo <span style={{ color: 'var(--accent)' }}>*</span></label>
+            <input id="username" autoComplete="username" {...register('username')} placeholder="TonPseudo_99" style={inputStyle} />
             {errors.username && <span style={errStyle}>{errors.username.message}</span>}
           </div>
           <div>
-            <label style={labelStyle}>Email <span style={{ color: 'var(--accent)' }}>*</span></label>
-            <input {...register('email')} type="email" placeholder="ton@email.com" style={inputStyle} />
+            <label htmlFor="email" style={labelStyle}>Email <span style={{ color: 'var(--accent)' }}>*</span></label>
+            <input id="email" autoComplete="email" {...register('email')} type="email" placeholder="ton@email.com" style={inputStyle} />
             {errors.email && <span style={errStyle}>{errors.email.message}</span>}
           </div>
           <div>
-            <label style={labelStyle}>Mot de passe <span style={{ color: 'var(--accent)' }}>*</span></label>
-            <input {...register('password')} type="password" placeholder="8 caractères minimum" style={inputStyle} />
+            <label htmlFor="password" style={labelStyle}>Mot de passe <span style={{ color: 'var(--accent)' }}>*</span></label>
+            <input id="password" autoComplete="new-password" {...register('password')} type="password" placeholder="8 caractères minimum" style={inputStyle} />
             {errors.password && <span style={errStyle}>{errors.password.message}</span>}
           </div>
 

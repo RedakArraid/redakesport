@@ -1,48 +1,30 @@
-import { useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
-
-type ChangeHandler<T> = (payload: RealtimePostgresChangesPayload<T>) => void
-
-interface RealtimeOptions<T extends Record<string, unknown>> {
+import { useEffect, useEffectEvent } from 'react'
+// Poll while the page is visible. Each query is re-authorized by the API.
+interface Change {
+  eventType: 'UPDATE'
+  new: Record<string, unknown>
+}
+interface Options {
   table: string
   filter?: string
-  onInsert?: ChangeHandler<T>
-  onUpdate?: ChangeHandler<T>
-  onDelete?: ChangeHandler<T>
+  onInsert?: (payload: Change) => void
+  onUpdate?: (payload: Change) => void
+  onDelete?: (payload: Change) => void
 }
-
-export function useRealtimeChannel<T extends Record<string, unknown>>(
+export function useRealtimeChannel(
   channelName: string,
-  { table, filter, onInsert, onUpdate, onDelete }: RealtimeOptions<T>,
-  deps: unknown[] = [],
+  { table, filter, onInsert, onUpdate, onDelete }: Options,
 ) {
+  const refresh = useEffectEvent(() => {
+    const payload: Change = { eventType: 'UPDATE', new: {} }
+    if (onUpdate) onUpdate(payload)
+    else if (onInsert) onInsert(payload)
+    else onDelete?.(payload)
+  })
   useEffect(() => {
-    const channel = supabase.channel(channelName)
-
-    if (onInsert) {
-      channel.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table, filter },
-        onInsert as ChangeHandler<Record<string, unknown>>,
-      )
-    }
-    if (onUpdate) {
-      channel.on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table, filter },
-        onUpdate as ChangeHandler<Record<string, unknown>>,
-      )
-    }
-    if (onDelete) {
-      channel.on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table, filter },
-        onDelete as ChangeHandler<Record<string, unknown>>,
-      )
-    }
-
-    channel.subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, deps)
+    const timer = setInterval(() => {
+      if (!document.hidden) refresh()
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [channelName, table, filter])
 }

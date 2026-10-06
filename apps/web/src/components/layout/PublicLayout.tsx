@@ -1,7 +1,6 @@
-import React from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
-import { Btn } from '../ui'
+import { Btn, ToastContainer } from '../ui'
 
 export function PublicLayout() {
   const { user } = useAuthStore()
@@ -9,7 +8,7 @@ export function PublicLayout() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Header / Nav */}
-      <nav style={{
+      <nav className="public-nav" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '16px 32px', borderBottom: '1px solid var(--border)',
         position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 100,
@@ -20,6 +19,7 @@ export function PublicLayout() {
           </span>
         </Link>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Link className="public-tournaments-link" to="/tournaments">Tournois</Link>
           {user ? (
             <Link to="/app/dashboard"><Btn size="sm">Tableau de bord</Btn></Link>
           ) : (
@@ -32,10 +32,11 @@ export function PublicLayout() {
       </nav>
 
       {/* Main Content */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="public-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Outlet />
       </main>
 
+      <ToastContainer />
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border)', padding: '20px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>

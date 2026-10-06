@@ -1,0 +1,8 @@
+.git
+**/node_modules
+**/dist
+**/.env*
+var
+test-results
+playwright-report
+design-mockup
