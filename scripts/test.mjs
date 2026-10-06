@@ -31,6 +31,7 @@ process.exitCode =
     'tests/ops.test.mjs',
     'tests/monitor.test.mjs',
     'tests/score-visibility.test.mjs',
+    'tests/match-visibility.test.mjs',
     'tests/brackets.test.mjs',
     'tests/swiss.test.mjs',
     'tests/api.test.mjs',
