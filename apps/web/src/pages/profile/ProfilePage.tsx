@@ -71,7 +71,7 @@ export function ProfilePage() {
   return (
     <div className="screen-enter" style={{ maxWidth: 700, margin: '0 auto' }}>
       {/* Hero profil */}
-      <Card style={{ padding: '28px 32px', marginBottom: 20 }}>
+      <Card style={{ padding: 'clamp(20px, 4vw, 32px)', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* Avatar */}
           <div
@@ -101,7 +101,7 @@ export function ProfilePage() {
             )}
           </div>
 
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: '1 1 260px', minWidth: 0 }}>
             {editing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <label>
@@ -130,12 +130,14 @@ export function ProfilePage() {
                   />
                 </label>
                 <input
+                  aria-label="Nom affiché"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Nom affiché"
                   style={inputSt}
                 />
                 <textarea
+                  aria-label="Biographie"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Bio..."
@@ -144,12 +146,14 @@ export function ProfilePage() {
                 />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <input
+                    aria-label="Pays"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
                     placeholder="Pays"
                     style={inputSt}
                   />
                   <input
+                    aria-label="Pseudo Discord"
                     value={discordTag}
                     onChange={(e) => setDiscordTag(e.target.value)}
                     placeholder="Discord tag"
@@ -176,19 +180,22 @@ export function ProfilePage() {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
+                    flexWrap: 'wrap',
+                    gap: 12,
                   }}
                 >
-                  <div>
-                    <div
+                  <div style={{ flex: '1 1 180px' }}>
+                    <h1
                       style={{
                         fontFamily: 'var(--font-display)',
                         fontWeight: 900,
                         fontSize: 22,
                         letterSpacing: -0.5,
+                        margin: 0,
                       }}
                     >
                       {profile.display_name ?? profile.username}
-                    </div>
+                    </h1>
                     <div style={{ color: 'var(--muted)', fontSize: 13 }}>@{profile.username}</div>
                   </div>
                   <Btn
@@ -239,7 +246,7 @@ export function ProfilePage() {
 
       {/* Stats */}
       <div
-        className="stats-grid"
+        className="stats-grid profile-stats"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',

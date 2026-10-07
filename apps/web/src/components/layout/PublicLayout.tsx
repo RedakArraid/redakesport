@@ -1,6 +1,6 @@
 import { Link, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
-import { Btn, ToastContainer } from '../ui'
+import { LinkBtn, ToastContainer } from '../ui'
 import { Brand } from '../ui/Brand'
 
 export function PublicLayout() {
@@ -38,19 +38,17 @@ export function PublicLayout() {
             Tournois
           </Link>
           {user ? (
-            <Link to="/app/dashboard">
-              <Btn size="sm">Tableau de bord</Btn>
-            </Link>
+            <LinkBtn to="/app/dashboard" size="sm">
+              Tableau de bord
+            </LinkBtn>
           ) : (
             <>
-              <Link to="/login">
-                <Btn variant="ghost" size="sm">
-                  Connexion
-                </Btn>
-              </Link>
-              <Link to="/register">
-                <Btn size="sm">S'inscrire</Btn>
-              </Link>
+              <LinkBtn to="/login" variant="ghost" size="sm">
+                Connexion
+              </LinkBtn>
+              <LinkBtn to="/register" size="sm">
+                S'inscrire
+              </LinkBtn>
             </>
           )}
         </div>

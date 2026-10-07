@@ -24,7 +24,16 @@ export async function createApp({ logger = false } = {}) {
   })
   await app.register(cookie)
   await app.register(multipart, { limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 2 } })
-  await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: '1 minute',
+    // Static assets and page reloads must not consume the API quota or become a JSON error page.
+    allowList: (req) => !req.routeOptions.url?.startsWith('/api/'),
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      message: 'Trop de requêtes. Patiente un instant avant de réessayer.',
+    }),
+  })
   await loadSchema()
   await mkdir(uploads, { recursive: true })
   app.decorateRequest('user', null)

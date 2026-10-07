@@ -2,10 +2,9 @@ import { MatchForfeit } from './MatchForfeit'
 import { useRepresentedTeams } from '../../hooks/useParticipants'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 import { db } from '../../lib/api'
-import { Card, Btn } from '../../components/ui'
+import { Card, Btn, LinkBtn } from '../../components/ui'
 import type { Match } from '../../types/database'
 export function MatchManagement({ match }: { match: Match }) {
   const user = useAuthStore((s) => s.user),
@@ -76,9 +75,7 @@ export function MatchManagement({ match }: { match: Match }) {
           (match.status === 'disputed' && !match.tournament_id)) &&
         match.team1_id &&
         match.team2_id && (
-          <Link to={`/app/scores?match=${match.id}`}>
-            <Btn>Soumettre ou confirmer le résultat</Btn>
-          </Link>
+          <LinkBtn to={`/app/scores?match=${match.id}`}>Soumettre ou confirmer le résultat</LinkBtn>
         )}
       {user &&
         (!match.tournament_id || t?.status === 'ongoing') &&

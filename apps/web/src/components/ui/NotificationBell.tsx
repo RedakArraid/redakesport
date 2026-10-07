@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,13 +13,41 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuthStore()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+    const root = document.getElementById('root')
+    const wasInert = root?.inert ?? false
+    if (root) root.inert = true
+    const button = trigger.current
+    panel.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+      }
+      if (event.key === 'Tab') {
+        const targets = Array.from(
+          panel.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') ?? [],
+        )
+        const first = targets[0],
+          last = targets.at(-1)
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }
     }
-    window.addEventListener('keydown', close)
-    return () => window.removeEventListener('keydown', close)
+    window.addEventListener('keydown', keyboard)
+    return () => {
+      window.removeEventListener('keydown', keyboard)
+      if (root) root.inert = wasInert
+      if (button?.isConnected && !button.closest('[inert]')) button.focus()
+    }
   }, [open])
 
   const { data: notifications } = useQuery({
@@ -63,6 +91,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div style={{ position: 'relative' }}>
       <button
+        ref={trigger}
         onClick={() => {
           setOpen((o) => !o)
           if (!open && unread > 0) markAllRead.mutate()
@@ -81,6 +110,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
           transition: 'background 0.15s',
         }}
         title="Notifications"
+        aria-label="Notifications"
         aria-expanded={open}
         aria-controls="notifications-panel"
       >
@@ -119,8 +149,10 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
             />
             {/* Panel */}
             <div
+              ref={panel}
               id="notifications-panel"
               role="dialog"
+              aria-modal="true"
               aria-label="Notifications"
               style={{
                 position: 'fixed',
@@ -158,8 +190,12 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
                   ✕
                 </button>
                 {unread > 0 && (
-                  <span
+                  <button
+                    type="button"
+                    disabled={markAllRead.isPending}
                     style={{
+                      border: 0,
+                      background: 'transparent',
                       fontSize: 11,
                       fontWeight: 600,
                       color: 'var(--muted)',
@@ -168,7 +204,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={() => markAllRead.mutate()}
                   >
                     Tout marquer lu
-                  </span>
+                  </button>
                 )}
               </div>
               {!notifications || notifications.length === 0 ? (

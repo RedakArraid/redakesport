@@ -1,8 +1,8 @@
 import React from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { db } from '../../lib/api'
-import { Card, Spinner } from '../../components/ui'
+import { Btn, Card, Spinner } from '../../components/ui'
 
 interface Group {
   id: string
@@ -91,8 +91,9 @@ function computeGroupStandings(members: GroupMember[], matches: Match[]): Standi
 
 export function GroupsPage() {
   const { id: tournamentId } = useParams<{ id: string }>()
+  const base = useLocation().pathname.startsWith('/app') ? '/app' : ''
 
-  const { data: tournament } = useQuery({
+  const tournamentQuery = useQuery({
     queryKey: ['tournament-summary', tournamentId],
     queryFn: async () => {
       const { data, error } = await db
@@ -105,8 +106,9 @@ export function GroupsPage() {
     },
     enabled: !!tournamentId,
   })
+  const tournament = tournamentQuery.data
 
-  const { data: groups, isLoading: loadingGroups } = useQuery({
+  const groupsQuery = useQuery({
     queryKey: ['groups', tournamentId],
     queryFn: async () => {
       const { data, error } = await db
@@ -119,8 +121,9 @@ export function GroupsPage() {
     },
     enabled: !!tournamentId,
   })
+  const groups = groupsQuery.data
 
-  const { data: groupMembers, isLoading: loadingMembers } = useQuery({
+  const membersQuery = useQuery({
     queryKey: ['group_members', tournamentId],
     queryFn: async () => {
       if (!groups || groups.length === 0) return []
@@ -138,8 +141,15 @@ export function GroupsPage() {
       }))
       // Fetch team names (try clubs then profiles)
       const teamIds = [...new Set((members ?? []).map((m) => m.team_id))]
-      const { data: clubs } = await db.from('clubs').select('id, name').in('id', teamIds)
-      const { data: profiles } = await db.from('profiles').select('id, username').in('id', teamIds)
+      const { data: clubs, error: clubsError } = await db
+        .from('clubs')
+        .select('id, name')
+        .in('id', teamIds)
+      const { data: profiles, error: profilesError } = await db
+        .from('profiles')
+        .select('id, username')
+        .in('id', teamIds)
+      if (clubsError || profilesError) throw clubsError || profilesError
 
       const nameMap: Record<string, string> = {}
       for (const c of clubs ?? []) nameMap[c.id] = c.name
@@ -152,8 +162,9 @@ export function GroupsPage() {
     },
     enabled: !!groups,
   })
+  const groupMembers = membersQuery.data
 
-  const { data: matches, isLoading: loadingMatches } = useQuery({
+  const matchesQuery = useQuery({
     queryKey: ['group_matches', tournamentId],
     refetchInterval: (query) => ((query.state.data?.length ?? 0) > 1000 ? 30000 : 5000),
     queryFn: async () => {
@@ -168,8 +179,13 @@ export function GroupsPage() {
     },
     enabled: !!tournamentId,
   })
+  const matches = matchesQuery.data
 
-  const isLoading = loadingGroups || loadingMembers || loadingMatches
+  const isLoading =
+    tournamentQuery.isLoading ||
+    groupsQuery.isLoading ||
+    membersQuery.isLoading ||
+    matchesQuery.isLoading
 
   if (isLoading) {
     return (
@@ -179,28 +195,54 @@ export function GroupsPage() {
     )
   }
 
+  if (
+    tournamentQuery.error ||
+    groupsQuery.error ||
+    membersQuery.error ||
+    matchesQuery.error ||
+    !tournament
+  ) {
+    return (
+      <Card>
+        <h1>Poules indisponibles</h1>
+        <p>
+          {tournamentQuery.error || !tournament
+            ? 'Ce tournoi est privé, n’existe plus ou ne peut pas être chargé.'
+            : 'Les poules n’ont pas pu être chargées. Réessaie dans quelques instants.'}
+        </p>
+        <div className="action-row">
+          <Btn
+            onClick={() => {
+              void tournamentQuery.refetch()
+              void groupsQuery.refetch()
+              if (groups?.length) void membersQuery.refetch()
+              void matchesQuery.refetch()
+            }}
+          >
+            Réessayer
+          </Btn>
+          <Link to={`${base}/tournaments/${tournamentId}`}>Revenir au tournoi</Link>
+        </div>
+      </Card>
+    )
+  }
+
   // If tournament is bracket format or no groups
   if (!groups || groups.length === 0) {
     return (
       <div className="screen-enter">
-        <div
-          style={{
-            marginBottom: 20,
-            fontFamily: 'var(--font-display)',
-            fontWeight: 900,
-            fontSize: 22,
-            letterSpacing: -0.5,
-          }}
-        >
-          Phase de groupes
-        </div>
+        <Link to={`${base}/tournaments/${tournamentId}`}>← Tournoi</Link>
+        <h1>Phase de poules</h1>
+        <p className="bracket-tournament-name">{tournament.name}</p>
         <Card style={{ padding: 48, textAlign: 'center', color: 'var(--muted)' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🏆</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
             Aucune phase de groupes disponible
           </div>
           <div style={{ fontSize: 13 }}>
-            Les poules apparaissent après le lancement des formats round robin et hybride.
+            {['round_robin', 'hybrid'].includes(tournament.format)
+              ? 'Les poules apparaissent après le lancement du tournoi.'
+              : 'Ce format de compétition ne comporte pas de phase de poules.'}
           </div>
         </Card>
       </div>
@@ -232,17 +274,9 @@ export function GroupsPage() {
 
   return (
     <div className="screen-enter">
-      <div
-        style={{
-          marginBottom: 24,
-          fontFamily: 'var(--font-display)',
-          fontWeight: 900,
-          fontSize: 22,
-          letterSpacing: -0.5,
-        }}
-      >
-        Phase de groupes {tournament ? `— ${tournament.name}` : ''}
-      </div>
+      <Link to={`${base}/tournaments/${tournamentId}`}>← Tournoi</Link>
+      <h1>Phase de poules</h1>
+      <p className="bracket-tournament-name">{tournament.name}</p>
 
       <div style={{ display: 'grid', gap: 24 }}>
         {groups.map((group) => {
@@ -270,7 +304,7 @@ export function GroupsPage() {
                 <div
                   style={{ padding: 24, color: 'var(--muted)', fontSize: 13, textAlign: 'center' }}
                 >
-                  Aucune équipe dans ce groupe
+                  Aucun participant dans cette poule
                 </div>
               ) : (
                 <>
@@ -286,7 +320,7 @@ export function GroupsPage() {
                         }}
                       >
                         <th style={{ ...thStyle, width: 32 }}>#</th>
-                        <th style={thStyle}>Équipe</th>
+                        <th style={thStyle}>Participant</th>
                         <th style={{ ...thStyle, textAlign: 'center' }}>J</th>
                         <th style={{ ...thStyle, textAlign: 'center' }}>V</th>
                         <th style={{ ...thStyle, textAlign: 'center' }}>N</th>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
-import { Card, SectionTitle, Badge, Spinner, Btn } from '../../components/ui'
+import { Card, SectionTitle, Badge, Spinner, LinkBtn } from '../../components/ui'
 import type { Tournament } from '../../types/database'
 
 function useTournaments(organizerId?: string) {
@@ -458,11 +458,9 @@ export function DashboardPage() {
                     Tournoi : {sub.tournaments?.name ?? 'Inconnu'} · Résultat à arbitrer
                   </div>
                 </div>
-                <Link to="/app/admin">
-                  <Btn size="sm" variant="danger">
-                    Arbitrer
-                  </Btn>
-                </Link>
+                <LinkBtn to="/app/admin" size="sm" variant="danger">
+                  Arbitrer
+                </LinkBtn>
               </Card>
             ))}
           </div>
@@ -490,9 +488,9 @@ export function DashboardPage() {
             Créez votre club pour recruter des joueurs, former un roster et participer aux
             compétitions par équipe.
           </div>
-          <Link to="/app/club">
-            <Btn size="sm">Créer mon club</Btn>
-          </Link>
+          <LinkBtn to="/app/club" size="sm">
+            Créer mon club
+          </LinkBtn>
         </Card>
       )}
 
@@ -517,11 +515,9 @@ export function DashboardPage() {
             Rejoignez un club pour participer aux tournois en équipe et améliorer l'ELO de votre
             structure.
           </div>
-          <Link to="/app/club">
-            <Btn size="sm" variant="secondary">
-              Découvrir les clubs et postuler
-            </Btn>
-          </Link>
+          <LinkBtn to="/app/club" size="sm" variant="secondary">
+            Découvrir les clubs et postuler
+          </LinkBtn>
         </Card>
       )}
 

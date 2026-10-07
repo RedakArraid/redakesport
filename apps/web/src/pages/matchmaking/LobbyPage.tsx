@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
 import { useRealtimeChannel } from '../../hooks/useRealtime'
-import { Card, Btn, Spinner } from '../../components/ui'
+import { Card, Btn, LinkBtn, Spinner } from '../../components/ui'
 export function LobbyPage() {
   const { id } = useParams()
   const user = useAuthStore((s) => s.user)
@@ -84,9 +84,7 @@ export function LobbyPage() {
             </>
           )}
           {lobby.match_id && (
-            <Link to={`/app/matches/${lobby.match_id}`}>
-              <Btn>Ouvrir le match</Btn>
-            </Link>
+            <LinkBtn to={`/app/matches/${lobby.match_id}`}>Ouvrir le match</LinkBtn>
           )}
           <Link to="/app/matchmaking">Retour au matchmaking</Link>
         </div>

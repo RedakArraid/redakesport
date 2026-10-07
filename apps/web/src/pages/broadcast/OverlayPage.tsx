@@ -10,7 +10,7 @@ export function OverlayPage() {
     document.body.classList.add('overlay')
     return () => document.body.classList.remove('overlay')
   }, [])
-  const { data: match } = useQuery({
+  const { data: match, isPending } = useQuery({
     queryKey: ['overlay-match', id],
     queryFn: async () => {
       const { data, error } = await db.from('matches').select('*').eq('id', id!).single()
@@ -58,6 +58,7 @@ export function OverlayPage() {
     },
     enabled: ids.length > 0,
   })
+  if (isPending) return null
   if (!match) return <div style={{ padding: 24 }}>Match indisponible ou privé</div>
   if (mode === 'winner' && !match.winner_id) return null
   const style = {

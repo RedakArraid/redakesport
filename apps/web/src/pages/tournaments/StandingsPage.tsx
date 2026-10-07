@@ -1,7 +1,7 @@
-import { useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { db, rowsByIds } from '../../lib/api'
-import { Card, Spinner } from '../../components/ui'
+import { Btn, Card, Spinner } from '../../components/ui'
 
 interface StandingRow {
   team_id: string
@@ -17,21 +17,23 @@ interface StandingRow {
 
 export function StandingsPage() {
   const { id: tournamentId } = useParams<{ id: string }>()
+  const base = useLocation().pathname.startsWith('/app') ? '/app' : ''
 
-  const { data: tournament } = useQuery({
+  const tournamentQuery = useQuery({
     queryKey: ['standings-format', tournamentId],
     queryFn: async () => {
       const { data, error } = await db
         .from('tournaments')
-        .select('format')
+        .select('name,format,status')
         .eq('id', tournamentId!)
         .single()
       if (error) throw error
       return data
     },
   })
+  const tournament = tournamentQuery.data
   const swiss = tournament?.format === 'swiss'
-  const { data: standings, isLoading } = useQuery({
+  const standingsQuery = useQuery({
     queryKey: ['standings', tournamentId],
     refetchInterval: 5000,
     queryFn: async () => {
@@ -68,27 +70,43 @@ export function StandingsPage() {
     },
     enabled: !!tournamentId,
   })
+  const standings = standingsQuery.data
 
-  if (isLoading)
+  if (tournamentQuery.isLoading || standingsQuery.isLoading)
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
         <Spinner size={32} />
       </div>
     )
 
+  if (tournamentQuery.error || standingsQuery.error || !tournament)
+    return (
+      <Card>
+        <h1>Classement indisponible</h1>
+        <p>
+          {tournamentQuery.error || !tournament
+            ? 'Ce tournoi est privé, n’existe plus ou ne peut pas être chargé.'
+            : 'Le classement n’a pas pu être chargé. Réessaie dans quelques instants.'}
+        </p>
+        <div className="action-row">
+          <Btn
+            onClick={() => {
+              void tournamentQuery.refetch()
+              void standingsQuery.refetch()
+            }}
+          >
+            Réessayer
+          </Btn>
+          <Link to={`${base}/tournaments/${tournamentId}`}>Revenir au tournoi</Link>
+        </div>
+      </Card>
+    )
+
   return (
     <div className="screen-enter">
-      <div
-        style={{
-          marginBottom: 20,
-          fontFamily: 'var(--font-display)',
-          fontWeight: 900,
-          fontSize: 22,
-          letterSpacing: -0.5,
-        }}
-      >
-        Classement
-      </div>
+      <Link to={`${base}/tournaments/${tournamentId}`}>← Tournoi</Link>
+      <h1>{tournament.status === 'completed' ? 'Classement final' : 'Classement'}</h1>
+      <p className="bracket-tournament-name">{tournament.name}</p>
 
       {!standings || standings.length === 0 ? (
         <Card style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
@@ -120,6 +138,7 @@ export function StandingsPage() {
                         fontFamily: 'var(--font-mono)',
                         letterSpacing: 0.5,
                         textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
                         color: 'var(--muted)',
                       }}
                     >

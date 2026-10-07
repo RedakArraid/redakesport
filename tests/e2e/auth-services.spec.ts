@@ -76,17 +76,75 @@ test('configured services offer Discord and email recovery', async ({ page }) =>
 })
 
 test('an existing recovery token works even without email delivery', async ({ page }) => {
+  const token = 'already-issued-token-with-valid-length-12345'
   await mockServices(page, false)
   await page.route('**/api/auth/reset-password', (route) => route.fulfill({ json: { ok: true } }))
-  await page.goto('/reset-password?token=already-issued-token')
+  await page.goto(`/reset-password?token=${token}`)
   await page.getByLabel('Nouveau mot de passe', { exact: true }).fill('NewPassword!2026')
   const resetRequest = page.waitForRequest('**/api/auth/reset-password')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   expect((await resetRequest).postDataJSON()).toEqual({
-    token: 'already-issued-token',
+    token,
     password: 'NewPassword!2026',
   })
   await expect(page.getByRole('status')).toHaveText('Mot de passe modifié. Connecte-toi à nouveau.')
+})
+
+test('invalid recovery links lead back to requesting a new link without submitting a password', async ({
+  page,
+}) => {
+  const resetRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/api/auth/reset-password')) resetRequests.push(request.url())
+  })
+  await mockServices(page, true)
+  for (const suffix of ['', '?token=invalid']) {
+    await page.goto(`/reset-password${suffix}`)
+    await expect(page.getByRole('alert')).toHaveText(
+      'Ce lien de réinitialisation est incomplet ou invalide.',
+    )
+    await expect(page.getByLabel('Nouveau mot de passe', { exact: true })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Demander un nouveau lien' }).click()
+    await expect(page).toHaveURL('/forgot-password')
+    await expect(page.getByLabel('Email', { exact: true })).toBeEditable()
+  }
+  expect(resetRequests).toEqual([])
+})
+
+test('registration can retry unavailable authentication options while keeping email signup usable', async ({
+  page,
+}) => {
+  let available = false
+  await page.route('**/api/config', (route) =>
+    available
+      ? route.fulfill({ json: { discordEnabled: true, passwordResetEnabled: true } })
+      : route.fulfill({ status: 503, json: { error: 'Service momentanément indisponible' } }),
+  )
+  await page.goto('/register')
+  await expect(page.getByRole('main').getByRole('status')).toContainText(
+    'Les autres options d’inscription sont temporairement indisponibles.',
+  )
+  await expect(page.getByLabel('Pseudo')).toBeEditable()
+  await expect(page.getByRole('button', { name: 'Créer mon compte', exact: true })).toBeEnabled()
+  available = true
+  await page.getByRole('button', { name: 'Réessayer', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Continuer avec Discord' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('status')).toHaveCount(0)
+})
+
+test('requesting a new recovery link clears an expired token error', async ({ page }) => {
+  await mockServices(page, true)
+  await page.route('**/api/auth/reset-password', (route) =>
+    route.fulfill({ status: 400, json: { error: 'Lien expiré ou invalide' } }),
+  )
+  await page.goto(`/reset-password?token=${'expired-token-'.repeat(3)}`)
+  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill('NewPassword!2026')
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('Lien expiré ou invalide')
+  await page.getByRole('link', { name: 'Demander un nouveau lien' }).click()
+  await expect(page.getByLabel('Email', { exact: true })).toBeEditable()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Envoyer le lien' })).toBeEnabled()
 })
 
 test('an unavailable configuration can be retried without exposing a broken recovery form', async ({

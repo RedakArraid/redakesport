@@ -32,10 +32,14 @@ function roleLabel(role: string | null) {
 
 function roleColor(role: string | null) {
   switch (role) {
-    case 'captain': return 'var(--blue)'
-    case 'organizer': return '#f59e0b'
-    case 'admin': return 'var(--accent)'
-    default: return 'var(--muted)'
+    case 'captain':
+      return 'var(--blue)'
+    case 'organizer':
+      return '#f59e0b'
+    case 'admin':
+      return 'var(--accent)'
+    default:
+      return 'var(--muted)'
   }
 }
 
@@ -81,14 +85,54 @@ export function LeaderboardPage() {
 
   return (
     <div className="screen-enter">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: -0.5 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 900,
+            fontSize: 22,
+            letterSpacing: -0.5,
+          }}
+        >
           Classement ELO
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button style={filterBtnStyle(roleFilter === 'all')} onClick={() => { setRoleFilter('all'); setPage(0) }}>Tous</button>
-          <button style={filterBtnStyle(roleFilter === 'player')} onClick={() => { setRoleFilter('player'); setPage(0) }}>Joueurs</button>
-          <button style={filterBtnStyle(roleFilter === 'captain')} onClick={() => { setRoleFilter('captain'); setPage(0) }}>Capitaines</button>
+          <button
+            style={filterBtnStyle(roleFilter === 'all')}
+            onClick={() => {
+              setRoleFilter('all')
+              setPage(0)
+            }}
+          >
+            Tous
+          </button>
+          <button
+            style={filterBtnStyle(roleFilter === 'player')}
+            onClick={() => {
+              setRoleFilter('player')
+              setPage(0)
+            }}
+          >
+            Joueurs
+          </button>
+          <button
+            style={filterBtnStyle(roleFilter === 'captain')}
+            onClick={() => {
+              setRoleFilter('captain')
+              setPage(0)
+            }}
+          >
+            Capitaines
+          </button>
         </div>
       </div>
 
@@ -105,20 +149,27 @@ export function LeaderboardPage() {
         <>
           <Card className="table-scroll" style={{ padding: 0, overflowX: 'auto' }}>
             <p className="table-hint">Fais glisser le tableau pour voir toutes les colonnes.</p>
-                <table style={{ minWidth: 520, width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ minWidth: 520, width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: 'var(--mute-bg)', borderBottom: '1px solid var(--border)' }}>
+                <tr
+                  style={{ background: 'var(--mute-bg)', borderBottom: '1px solid var(--border)' }}
+                >
                   {['#', 'Joueur', 'Pays', 'Rôle', 'ELO'].map((h, i) => (
-                    <th key={h} style={{
-                      padding: '10px 14px',
-                      textAlign: i === 0 ? 'center' : i === 4 ? 'right' : 'left',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: 'var(--muted)',
-                      fontFamily: 'var(--font-display)',
-                    }}>{h}</th>
+                    <th
+                      key={h}
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: i === 0 ? 'center' : i === 4 ? 'right' : 'left',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: 'var(--muted)',
+                        fontFamily: 'var(--font-display)',
+                      }}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -133,94 +184,130 @@ export function LeaderboardPage() {
                       key={profile.id}
                       style={{
                         background: isMe
-                          ? 'var(--blue)18'
+                          ? 'color-mix(in srgb, var(--blue) 10%, transparent)'
                           : isTop3
-                          ? i % 2 === 0 ? 'var(--mute-bg)' : 'transparent'
-                          : i % 2 === 0 ? 'transparent' : 'var(--mute-bg)',
+                            ? i % 2 === 0
+                              ? 'var(--mute-bg)'
+                              : 'transparent'
+                            : i % 2 === 0
+                              ? 'transparent'
+                              : 'var(--mute-bg)',
                         borderBottom: '1px solid var(--border)',
                         outline: isMe ? '2px solid var(--blue)' : undefined,
                         outlineOffset: isMe ? '-2px' : undefined,
                       }}
                     >
-                      <td style={{
-                        padding: '12px 14px',
-                        textAlign: 'center',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 800,
-                        fontSize: isTop3 ? 20 : 13,
-                        color: isTop3 ? undefined : 'var(--muted)',
-                        width: 52,
-                      }}>
+                      <td
+                        style={{
+                          padding: '12px 14px',
+                          textAlign: 'center',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          fontSize: isTop3 ? 20 : 13,
+                          color: isTop3 ? undefined : 'var(--muted)',
+                          width: 52,
+                        }}
+                      >
                         {isTop3 && page === 0 ? MEDALS[i] : rank}
                       </td>
 
                       <td style={{ padding: '12px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{
-                            width: 34, height: 34, borderRadius: '50%',
-                            background: 'var(--mute-bg)',
-                            border: '1.5px solid var(--border)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontFamily: 'var(--font-display)',
-                            fontWeight: 800, fontSize: 13,
-                            color: 'var(--ink)',
-                            flexShrink: 0,
-                            overflow: 'hidden',
-                          }}>
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: '50%',
+                              background: 'var(--mute-bg)',
+                              border: '1.5px solid var(--border)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontFamily: 'var(--font-display)',
+                              fontWeight: 800,
+                              fontSize: 13,
+                              color: 'var(--ink)',
+                              flexShrink: 0,
+                              overflow: 'hidden',
+                            }}
+                          >
                             {profile.avatar_url ? (
-                              <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <img
+                                src={profile.avatar_url}
+                                alt=""
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
                             ) : (
-                              profile.username?.[0]?.toUpperCase() ?? '?'
+                              (profile.username?.[0]?.toUpperCase() ?? '?')
                             )}
                           </div>
                           <div>
-                            <div style={{
-                              fontFamily: 'var(--font-display)',
-                              fontWeight: 700,
-                              fontSize: 14,
-                              color: 'var(--ink)',
-                            }}>
+                            <div
+                              style={{
+                                fontFamily: 'var(--font-display)',
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: 'var(--ink)',
+                              }}
+                            >
                               {profile.username}
                               {isMe && (
-                                <span style={{
-                                  marginLeft: 8,
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  color: 'var(--blue)',
-                                  background: 'var(--blue)20',
-                                  padding: '2px 7px',
-                                  borderRadius: 999,
-                                }}>Vous</span>
+                                <span
+                                  style={{
+                                    marginLeft: 8,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: 'var(--blue)',
+                                    background: 'color-mix(in srgb, var(--blue) 12%, transparent)',
+                                    padding: '2px 7px',
+                                    borderRadius: 999,
+                                  }}
+                                >
+                                  Vous
+                                </span>
                               )}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-body)' }}>
+                      <td
+                        style={{
+                          padding: '12px 14px',
+                          fontSize: 13,
+                          color: 'var(--muted)',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                      >
                         {profile.country ?? '—'}
                       </td>
 
                       <td style={{ padding: '12px 14px' }}>
-                        <span style={{
-                          fontSize: 11, fontWeight: 700,
-                          fontFamily: 'var(--font-display)',
-                          color: roleColor(profile.role),
-                          background: roleColor(profile.role) + '18',
-                          padding: '3px 9px', borderRadius: 999,
-                        }}>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-display)',
+                            color: roleColor(profile.role),
+                            background: `color-mix(in srgb, ${roleColor(profile.role)} 10%, transparent)`,
+                            padding: '3px 9px',
+                            borderRadius: 999,
+                          }}
+                        >
                           {roleLabel(profile.role)}
                         </span>
                       </td>
 
-                      <td style={{
-                        padding: '12px 14px',
-                        textAlign: 'right',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 800,
-                        fontSize: isTop3 ? 17 : 14,
-                        color: isTop3 ? 'var(--ink)' : 'var(--ink)',
-                      }}>
+                      <td
+                        style={{
+                          padding: '12px 14px',
+                          textAlign: 'right',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          fontSize: isTop3 ? 17 : 14,
+                          color: isTop3 ? 'var(--ink)' : 'var(--ink)',
+                        }}
+                      >
                         {profile.elo_rating?.toLocaleString('fr-FR') ?? '—'}
                       </td>
                     </tr>
@@ -231,17 +318,29 @@ export function LeaderboardPage() {
           </Card>
 
           {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 20 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 12,
+                marginTop: 20,
+              }}
+            >
               <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
                 style={{
-                  padding: '8px 18px', borderRadius: 999,
+                  padding: '8px 18px',
+                  borderRadius: 999,
                   border: '1.5px solid var(--border)',
-                  background: 'transparent', color: 'var(--ink)',
+                  background: 'transparent',
+                  color: 'var(--ink)',
                   cursor: page === 0 ? 'not-allowed' : 'pointer',
                   opacity: page === 0 ? 0.4 : 1,
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  fontSize: 13,
                 }}
               >
                 ← Précédent
@@ -250,15 +349,19 @@ export function LeaderboardPage() {
                 {page + 1} / {totalPages}
               </span>
               <button
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
                 style={{
-                  padding: '8px 18px', borderRadius: 999,
+                  padding: '8px 18px',
+                  borderRadius: 999,
                   border: '1.5px solid var(--border)',
-                  background: 'transparent', color: 'var(--ink)',
+                  background: 'transparent',
+                  color: 'var(--ink)',
                   cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
                   opacity: page >= totalPages - 1 ? 0.4 : 1,
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  fontSize: 13,
                 }}
               >
                 Suivant →

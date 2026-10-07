@@ -129,6 +129,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <button
             onClick={handleSignOut}
             title="Déconnexion"
+            aria-label="Déconnexion"
             style={{
               background: 'none',
               border: 'none',

@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { db } from '../../lib/api'
 import { useIsOrganizer } from '../../stores/authStore'
-import { Card, Badge, Btn, Spinner } from '../../components/ui'
+import { Card, Badge, Btn, LinkBtn, Spinner } from '../../components/ui'
 import type { Tournament, TournamentStatus } from '../../types/database'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -38,7 +38,12 @@ export function TournamentsListPage() {
     },
   })
 
-  const { data: tournaments, isLoading } = useQuery({
+  const {
+    data: tournaments,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['tournaments', 'list', filter, gameId],
     queryFn: async () => {
       let q = db
@@ -85,11 +90,7 @@ export function TournamentsListPage() {
             Tous les tournois de la plateforme
           </div>
         </div>
-        {isOrganizer && (
-          <Link to="/app/tournaments/create">
-            <Btn>+ Créer un tournoi</Btn>
-          </Link>
-        )}
+        {isOrganizer && <LinkBtn to="/app/tournaments/create">+ Créer un tournoi</LinkBtn>}
       </div>
 
       {/* Filtres */}
@@ -138,15 +139,23 @@ export function TournamentsListPage() {
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
           <Spinner size={32} />
         </div>
+      ) : error ? (
+        <Card>
+          <h2>Tournois indisponibles</h2>
+          <p>La liste des tournois n’a pas pu être chargée. Réessaie dans quelques instants.</p>
+          <Btn
+            onClick={() => {
+              void refetch()
+            }}
+          >
+            Réessayer
+          </Btn>
+        </Card>
       ) : tournaments?.length === 0 ? (
         <Card style={{ padding: 48, textAlign: 'center', color: 'var(--muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🏆</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Aucun tournoi trouvé</div>
-          {isOrganizer && (
-            <Link to="/app/tournaments/create">
-              <Btn>Créer le premier tournoi</Btn>
-            </Link>
-          )}
+          {isOrganizer && <LinkBtn to="/app/tournaments/create">Créer le premier tournoi</LinkBtn>}
         </Card>
       ) : (
         <div

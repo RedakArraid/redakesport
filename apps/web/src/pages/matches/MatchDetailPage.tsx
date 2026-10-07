@@ -21,11 +21,16 @@ export function MatchDetailPage() {
   const { data: match, isLoading } = useQuery({
     queryKey: ['match', matchId],
     queryFn: async () => {
-      const { data, error } = await db.from('matches').select('*').eq('id', matchId!).single()
+      const { data, error } = await db
+        .from('matches')
+        .select('*, tournaments(status)')
+        .eq('id', matchId!)
+        .single()
       if (error) throw error
-      return data as Match
+      return data as Match & { tournaments: { status: string } | null }
     },
     enabled: !!matchId,
+    refetchInterval: 5000,
   })
 
   const { data: events } = useQuery({
@@ -65,20 +70,32 @@ export function MatchDetailPage() {
     )
   if (!match) return <div>Match introuvable</div>
 
-  const isLive = match.status === 'live'
+  const cancelled = match.tournaments?.status === 'cancelled'
+  const isLive = !cancelled && match.status === 'live'
   const isDone = match.status === 'completed'
   const hasScore = (isDone || isLive) && !!match.team1_id && !!match.team2_id
   const statusLabel =
-    match.result_kind === 'forfeit'
-      ? 'Victoire par forfait'
-      : isDone && (!match.team1_id || !match.team2_id)
-        ? match.winner_id
-          ? 'Qualification par exemption'
-          : 'Rencontre non jouée'
-        : matchStatusLabels[match.status]
+    cancelled && !isDone
+      ? 'Rencontre non jouée (tournoi annulé)'
+      : match.result_kind === 'forfeit'
+        ? 'Victoire par forfait'
+        : isDone && (!match.team1_id || !match.team2_id)
+          ? match.winner_id
+            ? 'Qualification par exemption'
+            : 'Rencontre non jouée'
+          : match.bracket_position?.side === 'reset' && !match.team1_id
+            ? 'Finale décisive si nécessaire'
+            : matchStatusLabels[match.status]
 
   return (
     <div className="screen-enter">
+      {match.tournament_id && (
+        <p style={{ marginTop: 0 }}>
+          <Link to={`${base}/tournaments/${match.tournament_id}/bracket`}>
+            ← Tableau des rencontres
+          </Link>
+        </p>
+      )}
       {/* Score hero */}
       <div
         style={{
@@ -111,7 +128,7 @@ export function MatchDetailPage() {
             ● LIVE
           </div>
         )}
-        {isDone && (
+        {!isLive && (
           <div
             style={{
               opacity: 0.5,
@@ -195,7 +212,7 @@ export function MatchDetailPage() {
             style={{ marginTop: 12, opacity: 0.5, fontSize: 12, fontFamily: 'var(--font-mono)' }}
           >
             BO{match.best_of}
-            {match.scheduled_at
+            {match.scheduled_at && !cancelled
               ? ` · ${format(new Date(match.scheduled_at), 'd MMM HH:mm', { locale: fr })}`
               : ''}
           </div>
@@ -228,11 +245,11 @@ export function MatchDetailPage() {
           <Card>
             <SectionTitle>Détails du match</SectionTitle>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
-              <Row label="Format" value={`Best of ${match.best_of}`} />
+              <Row label="Format" value={`BO${match.best_of}`} />
               <Row label="Statut" value={statusLabel} />
               {match.scheduled_at && (
                 <Row
-                  label="Programmé"
+                  label={cancelled && !isDone ? 'Initialement programmé' : 'Programmé'}
                   value={format(new Date(match.scheduled_at), 'd MMMM yyyy à HH:mm', {
                     locale: fr,
                   })}

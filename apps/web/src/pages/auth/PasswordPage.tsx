@@ -1,29 +1,43 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { request } from '../../lib/api'
 import { Btn, Card } from '../../components/ui'
 import { useAuthConfig } from '../../hooks/useAuthConfig'
 export function PasswordPage() {
-  const [params] = useSearchParams(),
-    token = params.get('token'),
-    [email, setEmail] = useState(''),
+  const isReset = useLocation().pathname === '/reset-password'
+  const [params] = useSearchParams()
+  const token = params.get('token')
+  return <PasswordForm key={`${isReset}:${token ?? ''}`} token={token} isReset={isReset} />
+}
+
+function PasswordForm({ token, isReset }: { token: string | null; isReset: boolean }) {
+  const [email, setEmail] = useState(''),
     [password, setPassword] = useState(''),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false),
     [done, setDone] = useState(false)
-  const authConfig = useAuthConfig(!token)
+  const hasValidToken = !!token && /^[A-Za-z0-9_-]{30,100}$/.test(token)
+  const authConfig = useAuthConfig(!isReset)
   return (
     <div style={{ maxWidth: 460, width: '100%', margin: '60px auto', padding: 16 }}>
       <Card>
-        <h1>{token ? 'Nouveau mot de passe' : 'Mot de passe oublié'}</h1>
-        {done ? (
+        <h1>{isReset ? 'Nouveau mot de passe' : 'Mot de passe oublié'}</h1>
+        {isReset && !hasValidToken ? (
+          <>
+            <p role="alert">Ce lien de réinitialisation est incomplet ou invalide.</p>
+            <Link to="/forgot-password">Demander un nouveau lien</Link>
+            <p>
+              <Link to="/login">Revenir à la connexion</Link>
+            </p>
+          </>
+        ) : done ? (
           <>
             <p role="status">{message}</p>
             <Link to="/login">Se connecter</Link>
           </>
-        ) : !token && authConfig.isPending ? (
+        ) : !isReset && authConfig.isPending ? (
           <p role="status">Chargement des options de récupération…</p>
-        ) : !token && authConfig.isError ? (
+        ) : !isReset && authConfig.isError ? (
           <>
             <p role="alert">
               Le service de récupération est temporairement inaccessible. Réessaie dans quelques
@@ -34,7 +48,7 @@ export function PasswordPage() {
               <Link to="/login">Revenir à la connexion</Link>
             </p>
           </>
-        ) : !token && !authConfig.data?.passwordResetEnabled ? (
+        ) : !isReset && !authConfig.data?.passwordResetEnabled ? (
           <>
             <p role="status">
               La récupération par email n’est pas disponible. Contacte l’assistance du site.
@@ -48,8 +62,8 @@ export function PasswordPage() {
               setBusy(true)
               setMessage('')
               const result = await request(
-                token ? '/auth/reset-password' : '/auth/forgot-password',
-                token ? { token, password } : { email },
+                isReset ? '/auth/reset-password' : '/auth/forgot-password',
+                isReset ? { token, password } : { email: email.trim() },
               )
               setBusy(false)
               if (result.error) {
@@ -57,14 +71,14 @@ export function PasswordPage() {
                 return
               }
               setMessage(
-                token
+                isReset
                   ? 'Mot de passe modifié. Connecte-toi à nouveau.'
                   : 'Si ce compte existe, un lien a été envoyé.',
               )
               setDone(true)
             }}
           >
-            {token ? (
+            {isReset ? (
               <label>
                 Nouveau mot de passe
                 <input
@@ -83,6 +97,7 @@ export function PasswordPage() {
                 <input
                   type="email"
                   autoComplete="email"
+                  maxLength={254}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -91,8 +106,16 @@ export function PasswordPage() {
             )}
             {message && <p role="alert">{message}</p>}
             <Btn type="submit" loading={busy}>
-              {token ? 'Enregistrer' : 'Envoyer le lien'}
+              {isReset ? 'Enregistrer' : 'Envoyer le lien'}
             </Btn>
+            {isReset && message && (
+              <p>
+                <Link to="/forgot-password">Demander un nouveau lien</Link>
+              </p>
+            )}
+            <p>
+              <Link to="/login">Revenir à la connexion</Link>
+            </p>
           </form>
         )}
       </Card>

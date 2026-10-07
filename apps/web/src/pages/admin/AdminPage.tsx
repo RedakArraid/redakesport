@@ -549,7 +549,8 @@ export function AdminPage() {
             </Card>
           ) : (
             <Card className="table-scroll" style={{ padding: 0, overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <p className="table-hint">Fais glisser le tableau pour voir toutes les colonnes.</p>
+              <table style={{ minWidth: 560, width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr
                     style={{

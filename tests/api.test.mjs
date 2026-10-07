@@ -86,6 +86,49 @@ after(async () => {
   // Fixtures live only in the dedicated _test database; retain failures for diagnosis.
   await pool.end()
 })
+test('page reloads and assets do not consume or inherit the API rate limit', async () => {
+  const remoteAddress = '127.44.0.1'
+  const get = (url) => app.inject({ method: 'GET', url, remoteAddress })
+  for (let i = 0; i < 320; i++) {
+    const response = await get(i % 2 ? '/login' : '/favicon.svg')
+    assert.notEqual(response.statusCode, 429, 'Static navigation must stay available')
+  }
+  for (let i = 0; i < 300; i++) assert.equal((await get('/api/config')).statusCode, 200)
+  const limited = await get('/api/config')
+  assert.equal(limited.statusCode, 429)
+  assert.match(limited.json().error.message, /Trop de requêtes/)
+  assert.ok(Number(limited.headers['retry-after']) > 0)
+  for (const path of ['/', '/login', '/favicon.svg', '/manifest.json'])
+    assert.notEqual(
+      (await get(path)).statusCode,
+      429,
+      'Exhausted API quota must not block HTML or assets',
+    )
+})
+test('authentication keeps its stricter rate limit independently of static navigation', async () => {
+  const remoteAddress = '127.44.0.2'
+  for (let i = 0; i < 15; i++) {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      remoteAddress,
+      payload: { email: 'invalid', password: '' },
+    })
+    assert.equal(response.statusCode, 400)
+  }
+  const limited = await app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    remoteAddress,
+    payload: { email: 'invalid', password: '' },
+  })
+  assert.equal(limited.statusCode, 429)
+  assert.match(limited.json().error.message, /Trop de requêtes/)
+  assert.notEqual(
+    (await app.inject({ method: 'GET', url: '/login', remoteAddress })).statusCode,
+    429,
+  )
+})
 test('a round robin larger than one API page retains all 1,035 matches', async (t) => {
   const id = await tournament('round_robin', 46)
   for (let i = players.length; i < 46; i++) {

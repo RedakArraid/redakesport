@@ -144,6 +144,25 @@ for (const width of [1366, 390])
         fullPage: true,
         animations: 'disabled',
       })
+      if (t.status === 'cancelled') {
+        const unplayed = t.matches.find((m) => m.status !== 'completed')!
+        await page.goto(`/app/matches/${unplayed.id}`)
+        await expect(
+          page.getByText('Rencontre non jouée (tournoi annulé)', { exact: true }).first(),
+        ).toBeVisible()
+        await expect(page.locator('main')).not.toContainText('À jouer')
+        await expect(page.locator('main')).not.toContainText('● LIVE')
+        await expect(page.locator('.match-score')).toHaveText('–—–')
+        await expect(
+          page.getByRole('link', { name: 'Soumettre ou confirmer le résultat' }),
+        ).toHaveCount(0)
+        await expect(page.getByRole('button', { name: /Déclarer (un|mon) forfait/ })).toHaveCount(0)
+        await expect(page.getByRole('heading', { name: 'Gestion du match' })).toHaveCount(0)
+        await expect(page.getByRole('link', { name: '← Tableau des rencontres' })).toHaveAttribute(
+          'href',
+          `/app/tournaments/${t.id}/bracket`,
+        )
+      }
     }
     expect(errors).toEqual([])
     // Access errors and network failures must never look like an empty, not-yet-launched bracket.

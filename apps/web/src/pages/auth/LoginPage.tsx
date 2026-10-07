@@ -9,8 +9,8 @@ import { Brand } from '../../components/ui/Brand'
 import { Btn } from '../../components/ui'
 
 const schema = z.object({
-  email: z.string().email('Email invalide'),
-  password: z.string().min(8, 'Minimum 8 caractères'),
+  email: z.string().trim().email('Email invalide').max(254, 'Maximum 254 caractères'),
+  password: z.string().min(8, 'Minimum 8 caractères').max(128, 'Maximum 128 caractères'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -82,12 +82,19 @@ export function LoginPage() {
             <input
               id="email"
               autoComplete="email"
+              maxLength={254}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
               {...register('email')}
               type="email"
               placeholder="ton@email.com"
               style={inputStyle}
             />
-            {errors.email && <span style={errStyle}>{errors.email.message}</span>}
+            {errors.email && (
+              <span id="email-error" role="alert" style={errStyle}>
+                {errors.email.message}
+              </span>
+            )}
           </div>
           <div>
             <label htmlFor="password" style={labelStyle}>
@@ -96,19 +103,27 @@ export function LoginPage() {
             <input
               id="password"
               autoComplete="current-password"
+              maxLength={128}
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? 'password-error' : undefined}
               {...register('password')}
               type="password"
               placeholder="••••••••"
               style={inputStyle}
             />
-            {errors.password && <span style={errStyle}>{errors.password.message}</span>}
+            {errors.password && (
+              <span id="password-error" role="alert" style={errStyle}>
+                {errors.password.message}
+              </span>
+            )}
           </div>
 
           {error && (
             <div
+              role="alert"
               style={{
                 background: '#fee',
-                color: 'var(--accent)',
+                color: '#b42318',
                 padding: '10px 14px',
                 borderRadius: 8,
                 fontSize: 13,
@@ -194,7 +209,7 @@ const inputStyle: React.CSSProperties = {
 }
 const errStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--accent)',
+  color: '#b42318',
   marginTop: 4,
   display: 'block',
 }

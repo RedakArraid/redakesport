@@ -12,10 +12,10 @@ const schema = z.object({
   username: z
     .string()
     .min(3, 'Min 3 caractères')
-    .max(20)
+    .max(20, 'Maximum 20 caractères')
     .regex(/^[a-zA-Z0-9_]+$/, 'Lettres, chiffres, _ uniquement'),
-  email: z.string().email('Email invalide'),
-  password: z.string().min(8, 'Minimum 8 caractères'),
+  email: z.string().trim().email('Email invalide').max(254, 'Maximum 254 caractères'),
+  password: z.string().min(8, 'Minimum 8 caractères').max(128, 'Maximum 128 caractères'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -91,57 +91,88 @@ export function RegisterPage() {
           </>
         )}
 
+        {authConfig.isError && (
+          <p role="status" style={{ fontSize: 13, color: 'var(--muted)' }}>
+            Les autres options d’inscription sont temporairement indisponibles.{' '}
+            <Btn variant="ghost" size="sm" onClick={() => void authConfig.refetch()}>
+              Réessayer
+            </Btn>
+          </p>
+        )}
+
         <form
           onSubmit={handleSubmit(onSubmit)}
           style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
         >
           <div>
             <label htmlFor="username" style={labelStyle}>
-              Pseudo <span style={{ color: 'var(--accent)' }}>*</span>
+              Pseudo <span style={{ color: '#b42318' }}>*</span>
             </label>
             <input
               id="username"
               autoComplete="username"
+              maxLength={20}
+              aria-invalid={!!errors.username}
+              aria-describedby={errors.username ? 'username-error' : undefined}
               {...register('username')}
               placeholder="TonPseudo_99"
               style={inputStyle}
             />
-            {errors.username && <span style={errStyle}>{errors.username.message}</span>}
+            {errors.username && (
+              <span id="username-error" role="alert" style={errStyle}>
+                {errors.username.message}
+              </span>
+            )}
           </div>
           <div>
             <label htmlFor="email" style={labelStyle}>
-              Email <span style={{ color: 'var(--accent)' }}>*</span>
+              Email <span style={{ color: '#b42318' }}>*</span>
             </label>
             <input
               id="email"
               autoComplete="email"
+              maxLength={254}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
               {...register('email')}
               type="email"
               placeholder="ton@email.com"
               style={inputStyle}
             />
-            {errors.email && <span style={errStyle}>{errors.email.message}</span>}
+            {errors.email && (
+              <span id="email-error" role="alert" style={errStyle}>
+                {errors.email.message}
+              </span>
+            )}
           </div>
           <div>
             <label htmlFor="password" style={labelStyle}>
-              Mot de passe <span style={{ color: 'var(--accent)' }}>*</span>
+              Mot de passe <span style={{ color: '#b42318' }}>*</span>
             </label>
             <input
               id="password"
               autoComplete="new-password"
+              maxLength={128}
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? 'password-error' : undefined}
               {...register('password')}
               type="password"
               placeholder="8 caractères minimum"
               style={inputStyle}
             />
-            {errors.password && <span style={errStyle}>{errors.password.message}</span>}
+            {errors.password && (
+              <span id="password-error" role="alert" style={errStyle}>
+                {errors.password.message}
+              </span>
+            )}
           </div>
 
           {error && (
             <div
+              role="alert"
               style={{
                 background: '#fee',
-                color: 'var(--accent)',
+                color: '#b42318',
                 padding: '10px 14px',
                 borderRadius: 8,
                 fontSize: 13,
@@ -208,7 +239,7 @@ const inputStyle: React.CSSProperties = {
 }
 const errStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--accent)',
+  color: '#b42318',
   marginTop: 4,
   display: 'block',
 }

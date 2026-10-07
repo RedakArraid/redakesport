@@ -90,7 +90,7 @@ export function IntegrationsPage() {
       const { error } = await db.functions.invoke('discord-webhook', {
         body: {
           webhook_url: discordForm.webhook_url,
-          message: { title: 'Test Redak Esport', description: 'Webhook opérationnel !' },
+          message: { title: 'Test Redak eSport', description: 'Webhook opérationnel !' },
         },
       })
       setTestResult(error ? 'error' : 'ok')
@@ -103,16 +103,17 @@ export function IntegrationsPage() {
 
   const downloadMyICS = useMutation({
     mutationFn: async () => {
-      if (!user) return
-      const { data: clubMembers } = await db
+      if (!user) return 0
+      const { data: clubMembers, error: clubsError } = await db
         .from('club_members')
         .select('club_id')
         .eq('player_id', user.id)
+      if (clubsError) throw clubsError
       const teamIds = [user.id, ...(clubMembers ?? []).map((c) => c.club_id)]
 
       let matchQuery = db
         .from('matches')
-        .select('id, scheduled_at, team1_id, team2_id, tournament_id')
+        .select('id, scheduled_at, team1_id, team2_id, tournament_id, status')
         .not('scheduled_at', 'is', null)
 
       if (teamIds.length > 0) {
@@ -123,7 +124,7 @@ export function IntegrationsPage() {
 
       const { data: matches, error } = await matchQuery.all()
       if (error) throw error
-      if (!matches || matches.length === 0) return
+      if (!matches || matches.length === 0) return 0
 
       const teamIdsAll = [
         ...new Set(
@@ -138,7 +139,7 @@ export function IntegrationsPage() {
       const [clubs, profiles, tournaments] = await Promise.all([
         rowsByIds('clubs', teamIdsAll, 'id,name'),
         rowsByIds('profiles', teamIdsAll, 'id,username'),
-        rowsByIds('tournaments', tIds, 'id,name'),
+        rowsByIds('tournaments', tIds, 'id,name,status'),
       ])
       const tMap: Record<string, string> = {}
       for (const t of tournaments ?? []) tMap[t.id] = t.name
@@ -146,13 +147,19 @@ export function IntegrationsPage() {
       for (const c of clubs ?? []) teamMap[c.id] = c.name
       for (const p of profiles ?? []) if (!teamMap[p.id]) teamMap[p.id] = p.username
 
-      const enriched = matches.map((m) => ({
-        id: m.id,
-        scheduled_at: m.scheduled_at!,
-        team1_name: teamMap[m.team1_id ?? ''],
-        team2_name: teamMap[m.team2_id ?? ''],
-        tournament_name: m.tournament_id ? tMap[m.tournament_id] : undefined,
-      }))
+      const cancelled = new Set(
+        tournaments.filter((t) => t.status === 'cancelled').map((t) => t.id),
+      )
+      const enriched = matches
+        .filter((m) => m.status === 'completed' || !cancelled.has(m.tournament_id))
+        .map((m) => ({
+          id: m.id,
+          scheduled_at: m.scheduled_at!,
+          team1_name: teamMap[m.team1_id ?? ''],
+          team2_name: teamMap[m.team2_id ?? ''],
+          tournament_name: m.tournament_id ? tMap[m.tournament_id] : undefined,
+        }))
+      if (enriched.length === 0) return 0
 
       const ics = generateICSFromMatches(enriched)
       const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
@@ -162,6 +169,7 @@ export function IntegrationsPage() {
       a.download = 'mes-matches-redak.ics'
       a.click()
       URL.revokeObjectURL(url)
+      return enriched.length
     },
   })
 
@@ -260,8 +268,11 @@ export function IntegrationsPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label style={labelStyle}>Guild ID (Serveur Discord)</label>
+                  <label htmlFor="discord-guild" style={labelStyle}>
+                    Guild ID (Serveur Discord)
+                  </label>
                   <input
+                    id="discord-guild"
                     style={inputStyle}
                     placeholder="123456789012345678"
                     value={discordForm.guild_id}
@@ -269,8 +280,11 @@ export function IntegrationsPage() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Channel ID</label>
+                  <label htmlFor="discord-channel" style={labelStyle}>
+                    Channel ID
+                  </label>
                   <input
+                    id="discord-channel"
                     style={inputStyle}
                     placeholder="987654321098765432"
                     value={discordForm.channel_id}
@@ -278,8 +292,11 @@ export function IntegrationsPage() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Webhook URL *</label>
+                  <label htmlFor="discord-webhook" style={labelStyle}>
+                    Webhook URL *
+                  </label>
                   <input
+                    id="discord-webhook"
                     style={inputStyle}
                     placeholder="https://discord.com/api/webhooks/..."
                     value={discordForm.webhook_url}
@@ -431,9 +448,19 @@ export function IntegrationsPage() {
                 onClick={() => downloadMyICS.mutate()}
                 loading={downloadMyICS.isPending}
                 disabled={!user}
+                style={{ whiteSpace: 'normal' }}
               >
                 ⬇ Télécharger iCal (mes matches)
               </Btn>
+
+              {downloadMyICS.isSuccess && downloadMyICS.data === 0 && (
+                <p role="status">Aucun match programmé à exporter.</p>
+              )}
+              {downloadMyICS.isError && (
+                <p role="alert" style={{ color: 'var(--accent)' }}>
+                  {downloadMyICS.error.message}
+                </p>
+              )}
 
               <p>
                 Importe le fichier .ics téléchargé dans Google Calendar, Outlook ou Apple Calendar.

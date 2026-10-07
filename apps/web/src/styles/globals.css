@@ -4,7 +4,7 @@
   --bg: #f6f3eb;
   --card: #ffffff;
   --ink: #0f0f10;
-  --muted: #71706b;
+  --muted: #6b6a65;
   --border: #e8e3d6;
   --mute-bg: #f1ede1;
   --accent: #ff3b30;
@@ -401,6 +401,9 @@ body.overlay #root {
   }
   .screen-enter .stats-grid[style] {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .profile-stats > :last-child {
+    grid-column: 1 / -1;
   }
   .form-grid {
     grid-template-columns: minmax(0, 1fr);

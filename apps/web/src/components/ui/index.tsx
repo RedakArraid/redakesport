@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link, type LinkProps } from 'react-router-dom'
 
 // ── Button ────────────────────────────────────────────────────────────────────
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -7,15 +8,7 @@ interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
-export function Btn({
-  variant = 'primary',
-  size = 'md',
-  loading,
-  children,
-  disabled,
-  style,
-  ...props
-}: BtnProps) {
+function buttonStyle({ variant = 'primary', size = 'md', loading, disabled, style }: BtnProps) {
   const base: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -43,9 +36,30 @@ export function Btn({
     danger: { background: 'var(--accent)', color: '#fff' },
   }
 
+  return { ...base, ...sizes[size], ...variants[variant], ...style }
+}
+
+export function LinkBtn({
+  variant = 'primary',
+  size = 'md',
+  style,
+  ...props
+}: LinkProps & Pick<BtnProps, 'variant' | 'size'>) {
+  return <Link style={buttonStyle({ variant, size, style })} {...props} />
+}
+
+export function Btn({
+  variant = 'primary',
+  size = 'md',
+  loading,
+  children,
+  disabled,
+  style,
+  ...props
+}: BtnProps) {
   return (
     <button
-      style={{ ...base, ...sizes[size], ...variants[variant], ...style }}
+      style={buttonStyle({ variant, size, loading, disabled, style })}
       disabled={disabled || loading}
       {...props}
     >

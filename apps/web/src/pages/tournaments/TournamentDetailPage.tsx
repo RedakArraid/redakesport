@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '../../lib/api'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
-import { Card, Badge, Btn, Spinner } from '../../components/ui'
+import { Card, Badge, Btn, LinkBtn, Spinner } from '../../components/ui'
 import { invokeFunction } from '../../lib/functions'
 
 export function TournamentDetailPage() {
@@ -156,17 +156,15 @@ export function TournamentDetailPage() {
           </Btn>
         )}
         {owner && (
-          <Link to={`/app/tournaments/${id}/analytics`}>
-            <Btn variant="secondary">Statistiques</Btn>
-          </Link>
+          <LinkBtn to={`/app/tournaments/${id}/analytics`} variant="secondary">
+            Statistiques
+          </LinkBtn>
         )}
         {open &&
           !myRegistration &&
           !owner &&
           (!user ? (
-            <Link to="/login">
-              <Btn>Se connecter pour s’inscrire</Btn>
-            </Link>
+            <LinkBtn to={`/app/tournaments/${id}`}>Se connecter pour s’inscrire</LinkBtn>
           ) : team && !clubs.length ? (
             <Link to="/app/club">Ton capitaine peut inscrire ton club</Link>
           ) : (

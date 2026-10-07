@@ -20,7 +20,7 @@ test('public pages, login validation and mobile layout', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('esport')
-  await page.getByRole('button', { name: 'Explorer les tournois' }).click()
+  await page.getByRole('link', { name: 'Explorer les tournois' }).click()
   await expect(page).toHaveURL('/tournaments')
   await page.goto('/login')
   await page.getByRole('button', { name: 'Se connecter', exact: true }).click()

@@ -63,17 +63,22 @@ export function CalendarPage() {
   const { user } = useAuthStore()
   const [filter, setFilter] = useState<FilterMode>('all')
 
-  const { data: myTeamIds } = useQuery({
+  const teamsQuery = useQuery({
     queryKey: ['my-team-ids', user?.id],
     queryFn: async () => {
       if (!user) return []
-      const { data } = await db.from('club_members').select('club_id').eq('player_id', user.id)
+      const { data, error } = await db
+        .from('club_members')
+        .select('club_id')
+        .eq('player_id', user.id)
+      if (error) throw error
       return [user.id, ...(data ?? []).map((r) => r.club_id)]
     },
     enabled: !!user,
   })
+  const myTeamIds = teamsQuery.data
 
-  const { data: matches, isLoading } = useQuery({
+  const matchesQuery = useQuery({
     queryKey: ['calendar-matches', filter, myTeamIds],
     queryFn: async () => {
       let query = db
@@ -129,8 +134,11 @@ export function CalendarPage() {
           team2_name: teamMap[m.team2_id ?? ''] ?? 'Équipe 2',
         })) as MatchRow[]
     },
-    enabled: filter === 'all' || !!myTeamIds,
+    enabled: filter === 'all' || teamsQuery.isSuccess,
   })
+  const matches = matchesQuery.data
+  const isLoading = matchesQuery.isLoading || (filter === 'mine' && teamsQuery.isPending)
+  const error = matchesQuery.error || (filter === 'mine' && teamsQuery.error)
 
   // Group by day
   const groupedByDay: { dateKey: string; label: string; matches: MatchRow[] }[] = []
@@ -161,6 +169,7 @@ export function CalendarPage() {
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
     fontSize: 13,
+    whiteSpace: 'nowrap',
     transition: 'all 0.15s',
   })
 
@@ -186,7 +195,7 @@ export function CalendarPage() {
         >
           Calendrier des matches
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 6 }}>
             <button style={filterBtnStyle(filter === 'all')} onClick={() => setFilter('all')}>
               Tous
@@ -195,7 +204,7 @@ export function CalendarPage() {
               Mes matches
             </button>
           </div>
-          {matches && matches.length > 0 && (
+          {!error && matches && matches.length > 0 && (
             <Btn variant="secondary" size="sm" onClick={() => downloadICS(matches)}>
               📅 Exporter iCal
             </Btn>
@@ -203,7 +212,20 @@ export function CalendarPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <Card role="alert">
+          <h2>Calendrier indisponible</h2>
+          <p>Les rencontres n’ont pas pu être chargées. Réessaie dans quelques instants.</p>
+          <Btn
+            onClick={() => {
+              if (filter === 'mine' && teamsQuery.error) void teamsQuery.refetch()
+              else void matchesQuery.refetch()
+            }}
+          >
+            Réessayer
+          </Btn>
+        </Card>
+      ) : isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
           <Spinner size={32} />
         </div>
@@ -254,7 +276,14 @@ export function CalendarPage() {
                         {format(parseISO(match.scheduled_at), 'HH:mm')}
                       </div>
 
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          flex: '1 1 220px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
                         <span
                           style={{
                             fontWeight: 700,
@@ -264,7 +293,15 @@ export function CalendarPage() {
                         >
                           {match.team1_name}
                         </span>
-                        <span style={{ color: 'var(--muted)', fontWeight: 600, fontSize: 12 }}>
+                        <span
+                          style={{
+                            color: 'var(--muted)',
+                            fontWeight: 600,
+                            fontSize: 12,
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           vs
                         </span>
                         <span
