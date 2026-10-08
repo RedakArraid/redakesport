@@ -5,6 +5,7 @@ import { buildBracket } from '../apps/api/src/brackets.ts'
 import { createApp } from '../apps/api/src/server.mjs'
 import { pool } from '../apps/api/src/db.mjs'
 import { digest, passwordHash } from '../apps/api/src/auth.mjs'
+import { config } from '../apps/api/src/config.mjs'
 import { db as browserDb } from '../apps/web/src/lib/api.ts'
 let app, organizer, outsider, players, game
 const created = []
@@ -187,6 +188,63 @@ test('cookie authentication, logout, signup and protected writes', async () => {
     payload: { email, password: 'Long-password-2026' },
   })
   assert.equal(csrf.statusCode, 403)
+})
+test('local origin aliases support login, session and logout', async () => {
+  for (const origin of config.allowedOrigins) {
+    const headers = { origin, 'sec-fetch-site': 'same-origin' }
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers,
+      remoteAddress: '127.44.0.3',
+      payload: { email: organizer.email, password: 'Test-password-2026' },
+    })
+    assert.equal(response.statusCode, 200, `${origin}: ${response.body}`)
+    const cookie = response.headers['set-cookie'].split(';')[0]
+    const session = await req({ cookie }, '/api/auth/session')
+    assert.equal(session.data.session.user.id, organizer.id)
+    const logout = await app.inject({
+      method: 'POST',
+      url: '/api/auth/logout',
+      headers: { ...headers, cookie },
+    })
+    assert.equal(logout.statusCode, 200, logout.body)
+    assert.equal((await req({ cookie }, '/api/auth/session')).data.session, null)
+  }
+})
+test('origin protection still rejects foreign, malformed and cross-site requests', async () => {
+  const appUrl = new URL(config.origin)
+  const otherPort = new URL(appUrl)
+  otherPort.port = appUrl.port === '5174' ? '5176' : '5174'
+  const otherProtocol = new URL(appUrl)
+  otherProtocol.protocol = appUrl.protocol === 'http:' ? 'https:' : 'http:'
+  for (const headers of [
+    { origin: 'https://attacker.example' },
+    { origin: otherPort.origin },
+    { origin: otherProtocol.origin },
+    { origin: 'null' },
+    { origin: config.origin + '/' },
+    { origin: `${appUrl.protocol}//localhost.attacker.example:${appUrl.port}` },
+    { origin: `${appUrl.protocol}//user@${appUrl.host}` },
+    { origin: config.origin, 'sec-fetch-site': 'cross-site' },
+    { 'sec-fetch-site': 'cross-site' },
+    {
+      origin: 'https://attacker.example',
+      host: 'attacker.example',
+      'x-forwarded-host': 'attacker.example',
+    },
+  ]) {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers,
+      remoteAddress: '127.44.0.4',
+      payload: { email: organizer.email, password: 'Test-password-2026' },
+    })
+    assert.equal(response.statusCode, 403, JSON.stringify(headers))
+    assert.equal(response.json().error.message, 'Origine non autorisée')
+    assert.equal(response.headers['set-cookie'], undefined)
+  }
 })
 test('query compiler rejects injection and joins preserve permissions', async () => {
   await query(players[0], 'profiles; DROP TABLE profiles', {}, 400)

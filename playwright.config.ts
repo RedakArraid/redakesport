@@ -27,7 +27,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: 'npm run dev --workspace=apps/web -- --port 5177 --strictPort',
+      command: 'npm run dev --workspace=apps/web -- --host 127.0.0.1 --port 5177 --strictPort',
       url: 'http://localhost:5177',
       env: { API_PROXY: 'http://127.0.0.1:3002' },
       reuseExistingServer: false,

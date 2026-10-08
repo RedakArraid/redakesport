@@ -10,6 +10,8 @@ docker compose up --build -d
 
 Ouvrir **http://localhost:5175**. PostgreSQL et les fichiers persistent dans deux volumes distincts. Les migrations s’appliquent au lancement de l’application. Créer un compte et choisir Joueur, Capitaine ou Organisateur. Le rôle Organisateur gère uniquement ses compétitions ; ce n’est pas un administrateur global des comptes. Les emails de récupération arrivent dans la boîte locale **http://localhost:8025** ; ils ne sont pas envoyés sur Internet.
 
+**http://127.0.0.1:5175** fonctionne également. Hors production, une origine locale accepte les alias `localhost`, `127.0.0.1` et `[::1]` avec le même protocole et le même port. Les cookies de session restent propres à chaque hôte ; les liens email et callbacks OAuth utilisent toujours `APP_ORIGIN`. En production, seule l’origine exacte configurée est autorisée.
+
 Les valeurs du Compose sont prévues pour le développement local, avec des ports liés à `127.0.0.1`. La configuration serveur autonome `compose.production.yml` utilise Caddy pour HTTPS, des volumes séparés et une base privée. Copier `.env.production.example` vers `.env.production`, renseigner le domaine et les paramètres serveur, puis suivre le [guide de déploiement et d'exploitation](deploy/README.md). Les paramètres de production sont validés avant les migrations et le démarrage.
 
 ## Développement

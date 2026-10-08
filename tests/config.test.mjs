@@ -12,11 +12,69 @@ const production = {
 test('development keeps local defaults and optional providers disabled', () => {
   const config = loadConfig({})
   assert.equal(config.origin, 'http://localhost:5173')
+  assert.deepEqual(
+    new Set(config.allowedOrigins),
+    new Set(['http://localhost:5173', 'http://127.0.0.1:5173', 'http://[::1]:5173']),
+  )
   assert.equal(config.production, false)
   assert.equal(config.trustProxy, false)
   assert.equal(config.discordEnabled, false)
   assert.equal(config.passwordResetEnabled, false)
   assert.equal(config.smtp.requireTLS, false)
+})
+
+test('development loopback aliases retain the configured protocol, port and canonical origin', () => {
+  const hosts = ['localhost', '127.0.0.1', '[::1]']
+  for (const protocol of ['http:', 'https:']) {
+    for (const port of ['', ':5175']) {
+      const expected = hosts.map((host) => `${protocol}//${host}${port}`)
+      for (const origin of expected) {
+        const config = loadConfig({ APP_ORIGIN: origin })
+        assert.equal(config.origin, origin)
+        assert.equal(config.allowedOrigins.length, 3)
+        assert.deepEqual(new Set(config.allowedOrigins), new Set(expected))
+      }
+    }
+  }
+})
+
+test('development loopback origins do not trust other ports, schemes or lookalike hosts', () => {
+  const { allowedOrigins } = loadConfig({ APP_ORIGIN: 'http://localhost:5175' })
+  for (const origin of [
+    'http://localhost:5173',
+    'http://127.0.0.1:5176',
+    'https://localhost:5175',
+    'http://localhost.evil.test:5175',
+    'http://127.0.0.1.evil.test:5175',
+    'http://127.0.0.2:5175',
+    'http://0.0.0.0:5175',
+    'http://[::2]:5175',
+    'http://localhost:5175/login',
+    'http://user@localhost:5175',
+    'null',
+  ]) {
+    assert.equal(allowedOrigins.includes(origin), false, origin)
+  }
+})
+
+test('non-loopback development and every production origin remain explicitly restricted', () => {
+  for (const origin of [
+    'http://esport.example.test:5175',
+    'http://localhost.evil.test:5175',
+    'http://127.0.0.2:5175',
+  ]) {
+    assert.deepEqual(loadConfig({ APP_ORIGIN: origin }).allowedOrigins, [origin])
+  }
+  for (const origin of [
+    production.APP_ORIGIN,
+    'https://localhost:5175',
+    'https://127.0.0.1:5175',
+    'https://[::1]:5175',
+  ]) {
+    const config = loadConfig({ ...production, APP_ORIGIN: origin })
+    assert.equal(config.origin, origin)
+    assert.deepEqual(config.allowedOrigins, [origin])
+  }
 })
 
 test('production requires an explicit database and HTTPS public origin', () => {

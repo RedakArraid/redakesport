@@ -10,7 +10,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pool, transaction } from './db.mjs'
 import { dataQuery, callProcedure, loadSchema } from './data.mjs'
-import { authRoutes, origin, userForRequest } from './auth.mjs'
+import { authRoutes, userForRequest } from './auth.mjs'
 import { buildBracket } from './brackets.ts'
 import { config } from './config.mjs'
 const uploads = resolve(
@@ -47,7 +47,7 @@ export async function createApp({ logger = false } = {}) {
       const requestOrigin = req.headers.origin
       if (
         req.headers['sec-fetch-site'] === 'cross-site' ||
-        (requestOrigin && requestOrigin !== origin)
+        (requestOrigin && !config.allowedOrigins.includes(requestOrigin))
       )
         return reply.code(403).send({ error: { message: 'Origine non autorisée' } })
     }

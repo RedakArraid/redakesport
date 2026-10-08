@@ -71,6 +71,17 @@ export function loadConfig(env = process.env) {
   if (production && appUrl.protocol !== 'https:')
     settingError('APP_ORIGIN', 'HTTPS obligatoire en production')
 
+  const allowedOrigins = [appUrl.origin]
+  const loopbackHosts = ['localhost', '127.0.0.1', '[::1]']
+  // Local browser aliases share the configured scheme/port; production stays exact.
+  if (!production && loopbackHosts.includes(appUrl.hostname)) {
+    for (const hostname of loopbackHosts) {
+      const alias = new URL(appUrl)
+      alias.hostname = hostname
+      if (!allowedOrigins.includes(alias.origin)) allowedOrigins.push(alias.origin)
+    }
+  }
+
   const discordEnabled = !!(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET)
   const twitchEnabled = !!(env.TWITCH_CLIENT_ID && env.TWITCH_ACCESS_TOKEN)
   if (production) {
@@ -97,6 +108,7 @@ export function loadConfig(env = process.env) {
     production,
     databaseUrl,
     origin: appUrl.origin,
+    allowedOrigins,
     trustProxy: booleanSetting(env, 'TRUST_PROXY'),
     port: portSetting(env, 'PORT', 3001),
     host: env.HOST || '127.0.0.1',
